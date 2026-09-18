@@ -1,886 +1,857 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title id="page-title">Báo cáo chi tiết ghé thăm khách hàng</title>
-
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-
-    <style>
-        body, html {
-            margin: 0; padding: 0; height: 100%;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f1f5f9;
-            font-size: 13px;
-        }
-
-        #app-container { display: flex; height: 100vh; width: 100%; position: relative; }
-
-        #left-panel {
-            width: 40%; height: 100%;
-            display: flex; flex-direction: column;
-            border-right: 2px solid #cbd5e1;
-            background: #fff;
-        }
-        #upload-section {
-            padding: 15px; background: #e2e8f0; border-bottom: 2px solid #cbd5e1;
-        }
-        .upload-warning {
-            color: #1e40af; font-weight: bold; font-size: 15px; text-transform: uppercase;
-            background: #dbeafe; border: 1px solid #bfdbfe; text-align: center;
-            padding: 12px; border-radius: 6px; margin-bottom: 12px;
-        }
-
-        .btn-primary {
-            width: 100%; padding: 12px; background-color: #3b82f6; color: white;
-            border: none; border-radius: 6px; font-weight: bold; font-size: 14px;
-            cursor: pointer; transition: background 0.3s; margin-bottom: 10px;
-            display: block; text-align: center; box-sizing: border-box;
-        }
-        .btn-primary:hover { background-color: #2563eb; }
-        .btn-primary:disabled { background-color: #94a3b8; cursor: not-allowed; opacity: 0.7; }
-
-        .file-input-hidden { display: none; }
-
-        .file-status-box { margin-bottom: 10px; display: flex; justify-content: space-between; font-weight: bold; }
-        .status-badge { font-weight: normal; font-size: 12px; }
-        .upload-hint {
-            margin-top: 8px; padding: 10px 12px; border-radius: 6px;
-            background: #fef9c3; border: 1px solid #fde047; color: #854d0e;
-            font-size: 13px; line-height: 1.45;
-        }
-        .upload-hint.success { background: #dcfce7; border-color: #86efac; color: #166534; }
-        .dashboard-placeholder {
-            padding: 24px; text-align: center; color: #64748b;
-            background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px;
-        }
-
-        #map { flex-grow: 1; width: 100%; background: #e2e8f0; z-index: 1; }
-
-        #right-panel {
-            width: 60%; height: 100%;
-            padding: 20px; box-sizing: border-box;
-            overflow-y: auto; background-color: #ffffff;
-            position: relative;
-        }
-
-        .lang-switcher {
-            position: absolute; top: 15px; right: 20px; display: flex; gap: 5px;
-        }
-        .lang-btn {
-            background: white; border: 1px solid #cbd5e1; padding: 5px 10px;
-            border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold;
-        }
-        .lang-btn.active { background: #3b82f6; color: white; border-color: #3b82f6; }
-
-        .filter-header-section {
-            display: flex;
-            margin-bottom: 20px;
-            background: #f8fafc;
-            padding: 15px;
-            border-radius: 8px;
-            border: 1px solid #e2e8f0;
-            margin-top: 30px;
-        }
-
-        #avatar-container {
-            width: 150px;
-            height: 180px;
-            margin-right: 20px;
-            border: 2px dashed #cbd5e1;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background-color: #fff;
-            overflow: hidden;
-            flex-shrink: 0;
-        }
-
-        #avatar-container img { width: 100%; height: 100%; object-fit: cover; }
-
-        .filters-wrapper { flex-grow: 1; }
-        .filter-row { display: flex; align-items: flex-start; gap: 15px; margin-bottom: 15px; }
-        .filter-row h3 { margin: 0; min-width: 100px; color: #1e293b; padding-top: 5px; }
-        .filter-item { display: flex; flex-direction: column; flex: 1; }
-        .filter-item label { font-size: 13px; font-weight: bold; margin-bottom: 5px; color: #475569; }
-        .filter-item select { padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 14px; width: 100%; }
-
-        .day-chips { display: flex; flex-wrap: wrap; gap: 8px; min-height: 35px; align-items: center; }
-        .day-chip {
-            padding: 6px 12px; background: #f8fafc; border: 1px solid #cbd5e1;
-            border-radius: 6px; font-size: 13px; font-weight: 600; color: #475569;
-            cursor: pointer; transition: all 0.2s; user-select: none;
-        }
-        .day-chip:hover { background: #e2e8f0; }
-        .day-chip.active { background: #3b82f6; color: white; border-color: #3b82f6; }
-        .day-chip.active:hover { background: #2563eb; }
-
-        .summary-card { margin-bottom: 20px; }
-        .header-title-row { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px; margin-bottom: 15px; }
-        .header-title-row h2 { margin: 0; color: #0f172a; font-size: 18px; }
-
-        .data-table-container { overflow-x: auto; max-width: 100%; border: 1px solid #e2e8f0; border-radius: 8px; }
-        table { width: 100%; border-collapse: collapse; min-width: 700px; font-size: 13px; }
-        th, td { padding: 10px 12px; text-align: center; border: 1px solid #e2e8f0; }
-        th { background-color: #1e40af; color: white; font-weight: bold; vertical-align: middle; white-space: normal; }
-        tfoot td { background-color: #e2e8f0; font-weight: bold; color: #0f172a; }
-        .num-right { text-align: right; }
-        .day-cell { font-weight: bold; }
-
-        .route-marker {
-            border-radius: 50%; color: white; font-weight: bold;
-            display: flex; align-items: center; justify-content: center;
-            width: 26px; height: 26px; border: 2px solid white;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.4); font-size: 12px;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quy trình Trưng bày TT | ThaiCorp Display Process</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="allocation-data.js"></script>
 </head>
 <body>
-
-<div id="app-container">
-    <div id="left-panel">
-        <div id="upload-section">
-            <div class="upload-warning">
-                <div data-i18n="warningTitle">Báo cáo chi tiết ghé thăm khách hàng</div>
-                <div id="report-time" style="font-size: 13px; font-weight: normal; text-transform: none; margin-top: 5px; color: #1e293b;"></div>
-            </div>
-
-            <label for="fileRouteInput" class="btn-primary" data-i18n="btnUpload">📂 Chọn File Báo Cáo Tổng Hợp</label>
-            <input type="file" id="fileRouteInput" class="file-input-hidden" accept=".xlsx,.xls" onchange="handleRouteUpload(event)">
-
-            <div class="file-status-box">
-                <span data-i18n="lblRoute">Báo cáo tổng hợp:</span>
-                <span id="statusRoute" class="status-badge" style="color:#64748b;" data-i18n="statusEmpty">(Chưa tải)</span>
-            </div>
-            <div id="upload-hint" class="upload-hint" style="display:none;"></div>
+  <div id="open-hint" class="alert alert-warning" style="display:none;margin:0;border-radius:0;text-align:center;font-size:13px"></div>
+  <header class="page-header">
+    <div class="header-row">
+      <div class="header-brand">
+        <img src="assets/thaicorp-logo.png" alt="ThaiCorp" class="brand-logo">
+        <div class="header-text">
+          <h1 data-i18n="pageTitle">Quy trình Trưng bày — Kênh TT</h1>
+          <p class="subtitle" data-i18n="pageSubtitle">Tổng quan · Tra cứu nhanh · Form mẫu &amp; hướng dẫn chương trình</p>
         </div>
-        <div id="map"></div>
+      </div>
+      <div class="lang-switch" role="group" aria-label="Language">
+        <button type="button" class="lang-btn is-active" data-lang="vi">VI</button>
+        <button type="button" class="lang-btn" data-lang="en">EN</button>
+      </div>
     </div>
+    <nav class="nav-tabs" aria-label="Sections">
+      <button type="button" class="nav-tab is-active" data-section="overview" data-i18n="navOverview">Tổng quan</button>
+      <button type="button" class="nav-tab" data-section="timeline" data-i18n="navTimeline">9 bước quy trình</button>
+      <button type="button" class="nav-tab" data-section="lookup" data-i18n="navLookup">Tra cứu nhanh</button>
+      <button type="button" class="nav-tab" data-section="programs" data-i18n="navPrograms">Chương trình theo ngành</button>
+      <button type="button" class="nav-tab" data-section="posm" data-i18n="navPosm">Kế hoạch Snack (NPP &amp; POSM)</button>
+      <button type="button" class="nav-tab" data-section="foc" data-i18n="navFoc">FOC &amp; viếng thăm</button>
+      <button type="button" class="nav-tab" data-section="forms" data-i18n="navForms">Form mẫu</button>
+    </nav>
+  </header>
 
-    <div id="right-panel">
-        <div class="lang-switcher">
-            <button id="btn-lang-vi" class="lang-btn active" onclick="setLang('vi')">VI</button>
-            <button id="btn-lang-en" class="lang-btn" onclick="setLang('en')">EN</button>
+  <main class="layout">
+    <!-- Overview -->
+    <section id="overview" class="section panel-section">
+      <h2 data-i18n="overviewTitle">Bạn đang ở đâu trong hành trình trưng bày?</h2>
+      <div class="grid-2">
+        <div class="card">
+          <h3 data-i18n="cardTrainTitle">Onboarding</h3>
+          <p data-i18n="cardTrainBody">Bắt đầu từ mục <strong>9 bước quy trình</strong>.</p>
+        </div>
+        <div class="card">
+          <h3 data-i18n="cardLookupTitle">Tra cứu nhanh</h3>
+          <p data-i18n="cardLookupBody">Chọn mục đích → ngành hàng → vùng → loại POSM để xem đúng quy định và mức thưởng.</p>
+        </div>
+        <div class="card">
+          <h3 data-i18n="cardFormsTitle">Form mẫu</h3>
+          <p data-i18n="cardFormsBody">Tải file mẫu trong thư mục form mẫu với các form mẫu cần dùng trong trưng bày.</p>
+        </div>
+        <div class="card">
+          <h3 data-i18n="cardFocTitle">FOC &amp; quyền lợi</h3>
+          <p data-i18n="cardFocBody">Các ý chính bắt buộc phải tuân thủ tránh mất quyền lợi.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Timeline -->
+    <section id="timeline" class="section panel-section" hidden>
+      <h2 data-i18n="timelineTitle">Quy trình 9 bước — Kênh TT</h2>
+      <div class="timeline" id="timeline-steps"></div>
+      <div class="card" style="margin-top:20px">
+        <h3 data-i18n="rulesTitle">Quy định vận hành (áp dụng chung)</h3>
+        <ul id="rules-list"></ul>
+      </div>
+    </section>
+
+    <!-- Lookup -->
+    <section id="lookup" class="section panel-section" hidden>
+      <h2 data-i18n="lookupTitle">Tra cứu nhanh</h2>
+      <p class="section-lead" data-i18n="lookupLead">Chọn các tuỳ chọn bên dưới — hệ thống sẽ gợi ý nội dung liên quan và cuộn tới mục chi tiết nếu cần.</p>
+      <div class="card">
+        <div class="lookup-grid">
+          <label>
+            <span data-i18n="lkGoal">Mục đích</span>
+            <select id="lk-goal">
+              <option value="process" data-i18n-opt="lkGoalProcess">Quy trình / PIC / deadline</option>
+              <option value="reward" data-i18n-opt="lkGoalReward">Mức thưởng &amp; tiêu chuẩn trưng bày</option>
+              <option value="posm" data-i18n-opt="lkGoalPosm">Phân bổ POSM (Snack)</option>
+              <option value="foc" data-i18n-opt="lkGoalFoc">FOC &amp; điều kiện thanh toán</option>
+              <option value="forms" data-i18n-opt="lkGoalForms">Form mẫu cần dùng</option>
+            </select>
+          </label>
+          <label>
+            <span data-i18n="lkLine">Ngành hàng</span>
+            <select id="lk-line">
+              <option value="all" data-i18n-opt="lkLineAll">Chung (TT)</option>
+              <option value="snack" data-i18n-opt="lkLineSnack">Snack (Mix &amp; BiteeZ)</option>
+              <option value="mien" data-i18n-opt="lkLineMien">Miến</option>
+            </select>
+          </label>
+          <label>
+            <span data-i18n="lkRegion">Vùng / chính sách thưởng</span>
+            <select id="lk-region">
+              <option value="national" data-i18n-opt="lkRegNational">Toàn quốc (deck chuẩn)</option>
+              <option value="mekong" data-i18n-opt="lkRegMekong">ĐBSCL (Mekong Delta)</option>
+              <option value="north" data-i18n-opt="lkRegNorth">Miền Bắc (phân bổ POSM)</option>
+              <option value="south" data-i18n-opt="lkRegSouth">Miền Nam (phân bổ POSM)</option>
+            </select>
+          </label>
+          <label>
+            <span data-i18n="lkBrand">Brand (Snack)</span>
+            <select id="lk-brand">
+              <option value="na" data-i18n-opt="lkBrandNa">—</option>
+              <option value="mix" data-i18n-opt="lkBrandMix">Mix</option>
+              <option value="biteez" data-i18n-opt="lkBrandBz">BiteeZ</option>
+              <option value="both" data-i18n-opt="lkBrandBoth">Mix + BiteeZ</option>
+            </select>
+          </label>
+          <label>
+            <span data-i18n="lkPosm">Loại POSM</span>
+            <select id="lk-posm">
+              <option value="na" data-i18n-opt="lkPosmNa">—</option>
+              <option value="frame" data-i18n-opt="lkPosmFrame">Frame</option>
+              <option value="standee" data-i18n-opt="lkPosmStandee">Standee</option>
+              <option value="hanger" data-i18n-opt="lkPosmHanger">Hanger</option>
+            </select>
+          </label>
+        </div>
+        <div class="lookup-result card" id="lookup-result" style="background:#f8fbfd"></div>
+        <p style="margin:12px 0 0;font-size:12px;color:var(--c-muted)" data-i18n="lookupHint">Gợi ý: sau khi đọc kết quả, dùng thanh menu phía trên để mở mục chi tiết tương ứng.</p>
+      </div>
+    </section>
+
+    <!-- Programs -->
+    <section id="programs" class="section panel-section" hidden>
+      <h2 data-i18n="progTitle">Chương trình theo ngành hàng</h2>
+
+      <h3 class="prog-part-heading" data-i18n="progPart1">Phần 1: Tiêu chuẩn trưng bày kèm hình ảnh</h3>
+
+      <div class="card" id="prog-snack-std">
+        <span class="pill pill-mix">Snack</span>
+        <h3 data-i18n="snackTitle">Mix &amp; BiteeZ (Khung / kệ / Móc treo)</h3>
+        <div class="alert alert-warning" data-i18n="snackFrameRule">Không trưng BiteeZ bên trong frame Mix khi chưa có frame BiteeZ → bày ngoài frame (cạnh/dưới); 2 layer BiteeZ theo deck hướng dẫn.</div>
+        <div data-i18n-html="snackStdBody"></div>
+        <div class="standard-figure-grid">
+          <figure class="standard-figure standard-figure--posm">
+            <img src="assets/standards/snack-frame.jpg" alt="" loading="lazy">
+            <figcaption data-i18n="snackImg1">Frame</figcaption>
+          </figure>
+          <figure class="standard-figure standard-figure--posm">
+            <img src="assets/standards/snack-standee.png" alt="" loading="lazy">
+            <figcaption data-i18n="snackImg2">Standee</figcaption>
+          </figure>
+          <figure class="standard-figure standard-figure--posm">
+            <img src="assets/standards/snack-hanger.png" alt="" loading="lazy">
+            <figcaption data-i18n="snackImg3">Hanger</figcaption>
+          </figure>
         </div>
 
-        <div class="filter-header-section">
-            <div id="avatar-container">
-                <img id="avatar-img" src="" alt="Avatar" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'50\' height=\'50\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%23cbd5e1\' stroke-width=\'2\'><circle cx=\'12\' cy=\'8\' r=\'4\'/><path d=\'M18 21v-2a4 4 0 0 0-4-4H10a4 4 0 0 0-4 4v2\'/></svg>';">
-            </div>
-            <div class="filters-wrapper">
-                <div class="filter-row">
-                    <h3 data-i18n="filterTitle">Bộ Lọc</h3>
-                    <div class="filter-item">
-                        <label data-i18n="lblNPP">Đơn vị PP</label>
-                        <select id="sel-npp" disabled><option value="" data-i18n="optNPP">-- Chọn NPP --</option></select>
-                    </div>
-                    <div class="filter-item">
-                        <label data-i18n="lblNV">Nhân viên</label>
-                        <select id="sel-nv" disabled><option value="" data-i18n="optNV">-- Chọn Nhân viên --</option></select>
-                    </div>
-                </div>
-            </div>
+        <h4 style="margin:20px 0 12px;font-size:15px;color:var(--c-royal)" data-i18n="snackGuideTitle">Hướng dẫn trưng bày (so sánh đúng / sai)</h4>
+        <div class="standard-figure-grid standard-figure-grid--guide">
+          <figure class="standard-figure standard-figure--guide">
+            <img src="assets/standards/snack-guide-standee-hanger.jpg" alt="" loading="lazy">
+            <figcaption data-i18n="snackGuide1">Standee &amp; Hanger: không trưng sản phẩm khác / sai brand — phải theo tiêu chuẩn Mix, BiteeZ &amp; Parteez</figcaption>
+          </figure>
+          <figure class="standard-figure standard-figure--guide">
+            <img src="assets/standards/snack-guide-frame-biteez.jpg" alt="" loading="lazy">
+            <figcaption data-i18n="snackGuide2">Frame: không bày BiteeZ trong frame Mix — bày ngoài frame (cạnh/dưới) khi chưa có frame BiteeZ</figcaption>
+          </figure>
+        </div>
+      </div>
+
+      <div class="card" id="prog-mien-std">
+        <span class="pill pill-mien">Miến</span>
+        <h3 data-i18n="mienTitle">Song Long &amp; Song Lân (Khung &amp; Kệ)</h3>
+        <div class="grid-2">
+          <div>
+            <h4 data-i18n="mienKhung">Khung (T1–T12/2026)</h4>
+            <ul data-i18n-html="mienKhungStdList"></ul>
+          </div>
+          <div>
+            <h4 data-i18n="mienKe">Kệ (2 cách bày)</h4>
+            <ul data-i18n-html="mienKeStdList"></ul>
+          </div>
+        </div>
+        <div class="standard-figure-grid">
+          <figure class="standard-figure standard-figure--posm">
+            <img src="assets/standards/mien-frame.jpg" alt="" loading="lazy">
+            <figcaption data-i18n="mienImg1">Frame</figcaption>
+          </figure>
+          <figure class="standard-figure standard-figure--posm">
+            <img src="assets/standards/mien-standee.jpg" alt="" loading="lazy">
+            <figcaption data-i18n="mienImg2">Standee</figcaption>
+          </figure>
+        </div>
+      </div>
+
+      <h3 class="prog-part-heading" data-i18n="progPart2">Phần 2: Trả thưởng trưng bày</h3>
+
+      <div class="card">
+        <p class="form-desc" style="margin-top:0" data-i18n="rewardRegionLead">Chọn vùng để xem mức trả thưởng Snack (Mix &amp; BiteeZ). Miến áp dụng theo chương trình (xem bên dưới).</p>
+        <div class="region-tabs" role="tablist" aria-label="Reward region">
+          <button type="button" class="region-tab is-active" data-region="south" data-i18n="regionSouth">South</button>
+          <button type="button" class="region-tab" data-region="north" data-i18n="regionNorth">North</button>
+          <button type="button" class="region-tab" data-region="mekong" data-i18n="regionMekong">Mekong</button>
         </div>
 
-        <div class="summary-card" id="dashboard-section" style="display: none;">
-            <div class="header-title-row">
-                <h2 data-i18n="avgTableTitle">📊 Bảng Trung Bình Hiệu Suất Tuyến</h2>
-            </div>
-            <div id="dashboard-placeholder" class="dashboard-placeholder" style="display:none;"></div>
-            <div class="data-table-container" id="avg-table-container">
-                <table id="avg-table">
-                    <thead>
-                        <tr>
-                            <th data-i18n="thPeriod">Kỳ báo cáo</th>
-                            <th data-i18n="thAvgCheckin">TB Giờ Check-in</th>
-                            <th data-i18n="thAvgCheckout">TB Giờ Check-out</th>
-                            <th data-i18n="thAvgWorkTimeCheckinCheckout">TB thời gian làm việc check in check out/ ngày</th>
-                            <th data-i18n="thAvgCustomerWorkTime">TB thời gian thực tế làm việc khách hàng/ ngày</th>
-                            <th data-i18n="thAvgVisited">TB KH viếng thăm / ngày</th>
-                        </tr>
-                    </thead>
-                    <tbody id="avg-table-body"></tbody>
-                </table>
-            </div>
+        <div class="reward-region-panel" id="reward-panel-south" data-region="south">
+          <h4 data-i18n="rewardSnackSouth">Snack (Frame)</h4>
+          <div id="reward-south-snack"></div>
         </div>
-    </div>
-</div>
+        <div class="reward-region-panel" id="reward-panel-north" data-region="north" hidden>
+          <h4 data-i18n="rewardSnackNorth">Snack (Frame)</h4>
+          <div id="reward-north-snack"></div>
+        </div>
+        <div class="reward-region-panel" id="reward-panel-mekong" data-region="mekong" hidden>
+          <h4 data-i18n="rewardSnackMekong">Snack (Frame)</h4>
+          <div id="reward-mekong-snack"></div>
+        </div>
 
-<script>
-    const langData = {
-        vi: {
-            pageTitle: "Theo Dõi Đi Tuyến Nhân Viên",
-            warningTitle: "Báo cáo chi tiết ghé thăm khách hàng",
-            btnUpload: "📂 Chọn File Báo Cáo Tổng Hợp",
-            lblRoute: "Báo cáo tổng hợp:",
-            statusEmpty: "(Chưa tải)", statusLoading: "⌛ Đang xử lý...", statusDone: "✅ Đã tải xong", statusError: "❌ Lỗi đọc file",
-            filterTitle: "Bộ Lọc", lblNPP: "Đơn vị PP", optNPP: "-- Chọn NPP --", lblNV: "Nhân viên", optNV: "-- Chọn Nhân viên --",
-            avgTableTitle: "📊 Bảng Trung Bình Hiệu Suất Tuyến",
-            thPeriod: "Kỳ báo cáo", thAvgCheckin: "TB Giờ Check-in", thAvgCheckout: "TB Giờ Check-out",
-            thAvgWorkTimeCheckinCheckout: "TB thời gian làm việc check in check out/ ngày",
-            thAvgCustomerWorkTime: "TB thời gian thực tế làm việc khách hàng/ ngày",
-            thAvgVisited: "TB KH viếng thăm / ngày",
-            unitHour: "giờ", unitMinute: "phút", lblTime: "Thời gian: ", lblWorkDays: "ngày làm việc",
-            alertNoRoute: "Không tìm thấy lộ trình phù hợp!",
-            alertFileError: "Không đọc được file Excel. Vui lòng kiểm tra lại định dạng.",
-            hintSelectFilters: "Đã tải <b>{rows}</b> dòng. Vui lòng chọn <b>Đơn vị PP</b> và <b>Nhân viên</b> ở bên phải để xem bảng kết quả.",
-            hintAutoLoaded: "Đã tải <b>{rows}</b> dòng và hiển thị kết quả.",
-            placeholderSelect: "Chọn Đơn vị PP và Nhân viên để xem bảng trung bình hiệu suất tuyến."
-        },
-        en: {
-            pageTitle: "Employee Route Tracking",
-            warningTitle: "Customer Visit Detail Report",
-            btnUpload: "📂 Select Summary Report File",
-            lblRoute: "Summary report:",
-            statusEmpty: "(Not loaded)", statusLoading: "⌛ Processing...", statusDone: "✅ Loaded", statusError: "❌ File read error",
-            filterTitle: "Filters", lblNPP: "Distributor", optNPP: "-- Select Distributor --", lblNV: "Employee", optNV: "-- Select Employee --",
-            avgTableTitle: "📊 Average Route Productivity",
-            thPeriod: "Report Period", thAvgCheckin: "Avg Check-in", thAvgCheckout: "Avg Check-out",
-            thAvgWorkTimeCheckinCheckout: "Avg Check-in to Check-out Time / Day",
-            thAvgCustomerWorkTime: "Avg Actual Customer Visit Time / Day",
-            thAvgVisited: "Avg Visited Cus / Day",
-            unitHour: "hrs", unitMinute: "mins", lblTime: "Time: ", lblWorkDays: "working days",
-            alertNoRoute: "No matching route found!",
-            alertFileError: "Cannot read Excel file. Please check the format.",
-            hintSelectFilters: "Loaded <b>{rows}</b> rows. Select <b>Distributor</b> and <b>Employee</b> on the right to view results.",
-            hintAutoLoaded: "Loaded <b>{rows}</b> rows and displayed results.",
-            placeholderSelect: "Select Distributor and Employee to view the average productivity table."
-        }
-    };
+        <hr style="border:none;border-top:1px solid var(--c-mist);margin:20px 0">
 
-    const DAY_ORDER = {"Thứ 2": 2, "Thứ 3": 3, "Thứ 4": 4, "Thứ 5": 5, "Thứ 6": 6, "Thứ 7": 7, "Chủ nhật": 8};
-    const COL = {
-        NPP: 2, NV: 6, TEN_TUYEN: 9, NGAY: 10, THU: 11, STT_GHE: 12, LO_TRINH: 13, MA_KH: 14, TEN_KH: 15,
-        KET_QUA: 18, TIME_IN: 19, TIME_OUT: 20, TIME_TOTAL: 21, LAT: 30, LNG: 31
-    };
-    const colorMap = {
-        'Thứ 2': '#22c55e', 'Thứ 3': '#ef4444', 'Thứ 4': '#a855f7', 'Thứ 5': '#eab308',
-        'Thứ 6': '#000000', 'Thứ 7': '#3b82f6', 'Chủ nhật': '#f97316'
-    };
+        <h4 data-i18n="rewardMienTitle">Miến</h4>
+        <ul data-i18n-html="mienRewardList"></ul>
+      </div>
+    </section>
 
-    let curLang = 'vi';
-    let globalReportTime = "";
-    let loadStatus = { route: 'idle' };
-    let rawRouteData = [];
+    <!-- POSM allocation -->
+    <section id="posm" class="section panel-section" hidden>
+      <h2 data-i18n="posmTitle">Kế hoạch trưng bày Snack theo NPP</h2>
+      <div class="card posm-legend">
+        <h3 data-i18n="posmLegendTitle">Cách đọc bảng</h3>
+        <ul class="posm-legend-list" data-i18n-html="posmLegendBody"></ul>
+      </div>
+      <div class="card posm-filters">
+        <div class="posm-filter-grid">
+          <label>
+            <span data-i18n="posmFilterHq">Miền</span>
+            <select id="posm-hq-filter">
+              <option value="all" data-i18n-opt="posmHqAll">Tất cả</option>
+              <option value="south" data-i18n-opt="posmHqSouth">Miền Nam</option>
+              <option value="north" data-i18n-opt="posmHqNorth">Miền Bắc</option>
+            </select>
+          </label>
+          <label>
+            <span data-i18n="posmFilterArea">Khu vực (Area)</span>
+            <select id="posm-area-filter">
+              <option value="all" data-i18n-opt="posmAreaAll">Tất cả</option>
+            </select>
+          </label>
+          <label>
+            <span data-i18n="posmFilterSearch">Tìm NPP</span>
+            <input type="search" id="posm-search" placeholder="Mã / tên NPP" data-i18n-placeholder="posmSearchPh">
+          </label>
+          <label class="posm-filter-check">
+            <input type="checkbox" id="posm-show-totals" checked>
+            <span data-i18n="posmShowTotals">Hiện dòng tổng Area / Miền / Toàn quốc</span>
+          </label>
+        </div>
+      </div>
+      <div class="card">
+        <h3 data-i18n="posmTableTitle">Chi tiết theo NPP</h3>
+        <p class="form-desc" id="posm-row-count" aria-live="polite"></p>
+        <div class="data-table-wrap data-table-wrap--posm">
+          <table class="data-table data-table--posm" id="posm-table">
+            <thead>
+              <tr>
+                <th rowspan="2" data-i18n="posmColHq">Miền</th>
+                <th rowspan="2" data-i18n="posmColArea">Area</th>
+                <th rowspan="2" data-i18n="posmColCode">Mã NPP</th>
+                <th rowspan="2" data-i18n="posmColName">NPP</th>
+                <th colspan="2" class="th-group th-group--plan" data-i18n="posmGrpPlanMix">Kế hoạch CH — Mix (Allocation Plan)</th>
+                <th colspan="2" class="th-group th-group--plan" data-i18n="posmGrpPlanBz">Kế hoạch CH — BiteeZ (Allocation Plan)</th>
+                <th colspan="3" class="th-group th-group--alloc" data-i18n="posmGrpAllocMix">POSM gửi NPP — Mix (ALLOCATE POSM)</th>
+                <th colspan="3" class="th-group th-group--alloc" data-i18n="posmGrpAllocBz">POSM gửi NPP — BiteeZ (ALLOCATE POSM)</th>
+              </tr>
+              <tr>
+                <th class="th-group--plan" data-i18n="posmColFrame">Frame</th>
+                <th class="th-group--plan" data-i18n="posmColStandee">Standee</th>
+                <th class="th-group--plan" data-i18n="posmColFrame">Frame</th>
+                <th class="th-group--plan" data-i18n="posmColStandee">Standee</th>
+                <th class="th-group--alloc" data-i18n="posmColFrame">Frame</th>
+                <th class="th-group--alloc" data-i18n="posmColStandee">Standee</th>
+                <th class="th-group--alloc" data-i18n="posmColHanger">Hanger</th>
+                <th class="th-group--alloc" data-i18n="posmColFrame">Frame</th>
+                <th class="th-group--alloc" data-i18n="posmColStandee">Standee</th>
+                <th class="th-group--alloc" data-i18n="posmColHanger">Hanger</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+      <a class="btn btn-ghost" href="Snack%20Display%20(Allocation%20Plan).xlsx" download data-i18n="posmDownload">Tải file Excel đầy đủ</a>
+    </section>
 
-    const map = L.map('map').setView([10.8231, 106.6297], 10);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png').addTo(map);
-    let routeLayer = L.layerGroup().addTo(map);
+    <!-- FOC -->
+    <section id="foc" class="section panel-section" hidden>
+      <h2 data-i18n="focTitle">FOC trưng bày &amp; tần suất viếng thăm</h2>
+      <p class="section-lead" data-i18n="focLead">Nội dung bắt buộc cho sales team — tránh vi phạm ảnh hưởng quyền lợi và thanh toán phí trưng bày.</p>
+      <div class="alert alert-danger">
+        <strong data-i18n="focMustTitle">Khi trả hàng FOC trưng bày, bắt buộc:</strong>
+        <ul id="foc-must-list"></ul>
+      </div>
+      <div class="alert alert-warning" data-i18n="focBlock">Cửa hàng không có đầy đủ biên bản xác nhận và hình ảnh trả hàng FOC của kỳ trước sẽ <strong>không đủ điều kiện</strong> thanh toán phí trưng bày tháng kế tiếp.</div>
+      <div class="card">
+        <h3 data-i18n="focVisitTitle">Tần suất viếng thăm</h3>
+        <p data-i18n="focVisitBody">Viếng thăm, trưng bày và chụp hình tại cửa hàng <strong>tối thiểu 2 lần/tháng</strong> theo quy định (đồng bộ với yêu cầu 2 ảnh/tháng trong quy trình TT).</p>
+      </div>
+      <div class="card">
+        <h3 data-i18n="focNoticeTitle">Thông báo trưng bày (bản scan)</h3>
+        <img src="assets/thong-bao-trung-bay-p1.png" alt="Thông báo trưng bày" class="notice-img" width="900">
+        <p style="font-size:12px;color:var(--c-muted);margin-top:8px">
+          <a href="th%C3%B4ng%20b%C3%A1o%20tr%C6%B0ng%20b%C3%A0y.pdf" target="_blank" rel="noopener" data-i18n="focPdfLink">Mở file PDF gốc</a>
+        </p>
+      </div>
+    </section>
 
-    const selNPP = document.getElementById('sel-npp');
-    const selNV = document.getElementById('sel-nv');
-    const dashboard = document.getElementById('dashboard-section');
-    const dashboardPlaceholder = document.getElementById('dashboard-placeholder');
-    const avgTableContainer = document.getElementById('avg-table-container');
-    const uploadHint = document.getElementById('upload-hint');
+    <!-- Forms -->
+    <section id="forms" class="section panel-section" hidden>
+      <h2 data-i18n="formsTitle">Form mẫu — tải &amp; điền offline</h2>
+      <p class="section-lead" data-i18n="formsLead">Tải bản mẫu, điền trên máy/in ấn. Không hỗ trợ điền trực tuyến trên trang này.</p>
+      <ul class="form-list" id="form-downloads"></ul>
+      <div class="card" style="margin-top:20px">
+        <h3 data-i18n="refDocsTitle">Tài liệu tham khảo (deck / guideline)</h3>
+        <ul id="ref-docs-list"></ul>
+      </div>
+    </section>
+  </main>
 
-    function formatHint(template, vars) {
-        return template.replace(/\{(\w+)\}/g, (_, key) => vars[key] ?? '');
+  <script>
+(function () {
+  const I18N = {
+    vi: {
+      pageTitle: "Quy trình Trưng bày — Kênh TT",
+      pageSubtitle: "Tổng quan · Tra cứu nhanh · Form mẫu & hướng dẫn chương trình",
+      navOverview: "Tổng quan", navTimeline: "9 bước quy trình", navLookup: "Tra cứu nhanh",
+      navPrograms: "Chương trình theo ngành", navPosm: "Kế hoạch Snack (NPP & POSM)", navFoc: "FOC & viếng thăm", navForms: "Form mẫu",
+      overviewTitle: "Bạn đang ở đâu trong hành trình trưng bày?",
+      cardTrainTitle: "Onboarding", cardTrainBody: "Bắt đầu từ mục <strong>9 bước quy trình</strong>.",
+      cardLookupTitle: "Tra cứu nhanh", cardLookupBody: "Chọn mục đích → ngành hàng → vùng → loại POSM để xem đúng quy định và mức thưởng.",
+      cardFormsTitle: "Form mẫu", cardFormsBody: "Tải file mẫu trong thư mục form mẫu với các form mẫu cần dùng trong trưng bày.",
+      cardFocTitle: "FOC & quyền lợi", cardFocBody: "Các ý chính bắt buộc phải tuân thủ tránh mất quyền lợi.",
+      timelineTitle: "Quy trình 9 bước — Kênh TT",
+      rulesTitle: "Quy định vận hành (áp dụng chung)",
+      lookupTitle: "Tra cứu nhanh", lookupLead: "Chọn các tuỳ chọn bên dưới — hệ thống sẽ gợi ý nội dung liên quan.",
+      lkGoal: "Mục đích", lkLine: "Ngành hàng", lkRegion: "Vùng / chính sách thưởng", lkBrand: "Brand (Snack)", lkPosm: "Loại POSM",
+      lkGoalProcess: "Quy trình / PIC / deadline", lkGoalReward: "Mức thưởng & tiêu chuẩn", lkGoalPosm: "Kế hoạch Snack (NPP & POSM)",
+      lkGoalFoc: "FOC & điều kiện thanh toán", lkGoalForms: "Form mẫu cần dùng",
+      lkLineAll: "Chung (TT)", lkLineSnack: "Snack (Mix & BiteeZ)", lkLineMien: "Miến",
+      lkRegNational: "Toàn quốc (deck chuẩn)", lkRegMekong: "ĐBSCL (Mekong Delta)", lkRegNorth: "Miền Bắc (phân bổ POSM)", lkRegSouth: "Miền Nam (phân bổ POSM)",
+      lkBrandNa: "—", lkBrandMix: "Mix", lkBrandBz: "BiteeZ", lkBrandBoth: "Mix + BiteeZ",
+      lkPosmNa: "—", lkPosmFrame: "Frame", lkPosmStandee: "Standee", lkPosmHanger: "Hanger",
+      lookupHint: "Gợi ý: sau khi đọc kết quả, dùng thanh menu phía trên để mở mục chi tiết.",
+      progTitle: "Chương trình theo ngành hàng",
+      progPart1: "Phần 1: Tiêu chuẩn trưng bày kèm hình ảnh",
+      progPart2: "Phần 2: Trả thưởng trưng bày",
+      snackTitle: "Mix & BiteeZ (Khung / kệ / Móc treo)",
+      snackFrameRule: "Không trưng BiteeZ bên trong frame Mix khi chưa có frame BiteeZ → bày ngoài frame (cạnh/dưới); 2 layer BiteeZ theo deck hướng dẫn.",
+      snackStdBody: "<ul><li><strong>Frame Mix</strong>: tối thiểu 2 mâm, chiều dài 1m.</li><li><strong>Frame BiteeZ</strong>: tối thiểu 2 mâm, chiều dài 1m (bày riêng, không trong frame Mix).</li><li><strong>Standee</strong>: BiteeZ 18g &amp; Parteez; Mix 50g (ớt cay, rong biển, gà cay HQ) · kích thước 0,6m × 1,4m.</li><li><strong>Hanger</strong>: Mix 50g/20g hoặc BiteeZ 18g — trước cửa shop, cùng shop với Mix &amp; BiteeZ.</li></ul>",
+      snackImg1: "Frame",
+      snackImg2: "Standee",
+      snackImg3: "Hanger",
+      snackGuideTitle: "Hướng dẫn trưng bày (so sánh đúng / sai)",
+      snackGuide1: "Standee & Hanger: không trưng sản phẩm khác / sai brand — phải theo tiêu chuẩn Mix, BiteeZ & Parteez",
+      snackGuide2: "Frame: không bày BiteeZ trong frame Mix — bày ngoài frame (cạnh/dưới) khi chưa có frame BiteeZ",
+      rewardRegionLead: "Chọn vùng để xem mức trả thưởng Snack (Mix & BiteeZ). Miến áp dụng theo chương trình (xem bên dưới).",
+      regionSouth: "South", regionNorth: "North", regionMekong: "Mekong",
+      rewardSnackSouth: "Snack (Frame)", rewardSnackNorth: "Snack (Frame)", rewardSnackMekong: "Snack (Frame)",
+      rewardMienTitle: "Miến",
+      mienTitle: "Song Long & Song Lân (Khung & Kệ)", mienKhung: "Khung (T1–T12/2026)", mienKe: "Kệ (2 cách bày)",
+      mienKhungStdList: "<li>SKU: Miến đậu xanh 200g, Miến dong 200g</li><li>Quy cách: dong 8 mặt×3 lớp; đậu xanh 10 mặt×3 lớp</li><li>Tiêu chuẩn: ≥1 mâm, ≥1 SKU, tối thiểu 8 mặt</li><li>Khung 1m × 0,8m</li>",
+      mienKeStdList: "<li><strong>Cách 1</strong>: 1 SKU miến khô + 1 SKU miến tươi (khô ≥4 mặt, tươi ≥2 mặt)</li><li><strong>Cách 2</strong>: 3 mâm, mỗi mâm ≥5 mặt</li><li>Kệ: 1,3m (cao) × 0,5m (rộng) × 0,25m (sâu)</li>",
+      mienRewardList: "<li><strong>Khung</strong>: 10 gói Miến đậu xanh 200g / CH / tháng</li><li><strong>Kệ</strong>: 20 gói Miến đậu xanh 200g / CH / tháng</li><li>CTKM theo tháng (có thể thay đổi)</li>",
+      mienImg1: "Frame — kích thước 1m × 0,8m",
+      mienImg2: "Standee — Cách 1 & Cách 2 (1,3m × 0,5m × 0,25m)",
+      posmTitle: "Kế hoạch trưng bày Snack theo NPP",
+      posmLegendTitle: "Cách đọc bảng",
+      posmLegendBody: "<li><strong>Allocation Plan</strong> (Kế hoạch cửa hàng): số <em>cửa hàng</em> được phép đăng ký trưng bày theo loại POSM (Frame / Standee).</li><li><strong>ALLOCATE POSM</strong>: số lượng <em>POSM tối đa</em> được gửi về NPP (Frame / Standee / Hanger) — không phải số cửa hàng.</li><li>Mix và BiteeZ tách riêng hai khối cột như trên Excel.</li>",
+      posmFilterHq: "Miền", posmHqAll: "Tất cả", posmHqSouth: "Miền Nam", posmHqNorth: "Miền Bắc",
+      posmFilterArea: "Khu vực (Area)", posmAreaAll: "Tất cả",
+      posmFilterSearch: "Tìm NPP", posmSearchPh: "Mã hoặc tên NPP",
+      posmShowTotals: "Hiện dòng tổng Area / Miền / Toàn quốc",
+      posmTableTitle: "Chi tiết theo NPP", posmColHq: "Miền", posmColArea: "Area", posmColCode: "Mã NPP", posmColName: "NPP",
+      posmColFrame: "Frame", posmColStandee: "Standee", posmColHanger: "Hanger",
+      posmGrpPlanMix: "Kế hoạch CH — Mix (Allocation Plan)", posmGrpPlanBz: "Kế hoạch CH — BiteeZ (Allocation Plan)",
+      posmGrpAllocMix: "POSM gửi NPP — Mix (ALLOCATE POSM)", posmGrpAllocBz: "POSM gửi NPP — BiteeZ (ALLOCATE POSM)",
+      posmRowCount: "{n} NPP · {t} dòng hiển thị",
+      posmDownload: "Tải file Excel đầy đủ",
+      focTitle: "FOC trưng bày & tần suất viếng thăm", focLead: "Bắt buộc cho sales team — tránh ảnh hưởng quyền lợi.",
+      focMustTitle: "Khi trả hàng FOC trưng bày, bắt buộc:",
+      focBlock: "Thiếu biên bản & ảnh FOC kỳ trước → không đủ điều kiện thanh toán phí trưng bày tháng kế tiếp.",
+      focVisitTitle: "Tần suất viếng thăm", focVisitBody: "Viếng thăm, trưng bày và chụp hình tối thiểu 2 lần/tháng theo quy định.",
+      focNoticeTitle: "Thông báo trưng bày (bản scan)", focPdfLink: "Mở file PDF gốc",
+      formsTitle: "Form mẫu — tải & điền offline", formsLead: "Tải bản mẫu, điền offline.", refDocsTitle: "Tài liệu tham khảo (deck / guideline)",
+      focMust: [
+        "Có Biên bản xác nhận nhận hàng với đầy đủ chữ ký khách hàng.",
+        "Chụp hình ảnh khách hàng nhận hàng FOC thực tế.",
+        "Gửi hình ảnh xác nhận vào nhóm trưng bày ngay sau khi hoàn tất."
+      ],
+      steps: [
+        { title: "Đề xuất CH trưng bày & vị trí", pic: "CDM / KAM", body: "Gửi thông tin CH theo mẫu cho MKT, RTM, Sales Effectiveness khi đề xuất và phê duyệt." },
+        { title: "Phê duyệt cửa hàng trưng bày", pic: "Sales Director", body: "" },
+        { title: "Cập nhật danh sách CH trưng bày", pic: "RTM — mỗi thứ Sáu", body: "Gồm danh sách đăng ký và tồn POSM tại NPP." },
+        { title: "Chuẩn bị & giao POSM về NPP", pic: "MKT, CS, Logistics", body: "" },
+        { title: "Ký Biên bản thỏa thuận trưng bày", pic: "CDM/KAM & Khách hàng", body: "" },
+        { title: "Báo cáo trưng bày hàng tháng", pic: "Sales Effectiveness", body: "Cập nhật báo cáo ngày 06 hàng tháng để xử lý trả thưởng." },
+        { title: "Phê duyệt trả phí trưng bày", pic: "MKT / Route to Market", body: "Cần hình ảnh trưng bày 2 lần/tháng/CH." },
+        { title: "Trả phí trưng bày", pic: "Sales Effectiveness & Sales team", body: "Chỉ trả phí tháng khi có biên bản FOC tháng trước (ký KH + ảnh)." },
+        { title: "Theo dõi biên bản, FOC, hiệu quả", pic: "RTM", body: "" }
+      ],
+      rules: [
+        "Trưng bày sau ngày 20: không trả phí tháng đó — tính từ ngày 01 tháng sau.",
+        "Phê duyệt trả phí: mỗi CH cần hình ảnh trưng bày 2 lần/tháng.",
+        "Trả phí tháng hiện tại khi có biên bản FOC tháng trước (xác nhận từ KH + hình ảnh nhận FOC).",
+        "Triển khai: key POSM trên hệ thống DMS."
+      ]
+    },
+    en: {
+      pageTitle: "Display Process — TT Channel",
+      pageSubtitle: "Overview · Quick lookup · Forms & program guides",
+      navOverview: "Overview", navTimeline: "9-step process", navLookup: "Quick lookup",
+      navPrograms: "Programs by category", navPosm: "Snack plan (NPP & POSM)", navFoc: "FOC & visits", navForms: "Forms",
+      overviewTitle: "Where are you in the display journey?",
+      cardTrainTitle: "Onboarding", cardTrainBody: "Start with the <strong>9-step process</strong>.",
+      cardLookupTitle: "Quick lookup", cardLookupBody: "Pick purpose → line → region → POSM type for the right rules and rewards.",
+      cardFormsTitle: "Forms", cardFormsBody: "Download templates from the form mẫu folder — the forms needed for display.",
+      cardFocTitle: "FOC & eligibility", cardFocBody: "Mandatory points to follow so you do not lose benefits.",
+      timelineTitle: "9-step process — TT Channel",
+      rulesTitle: "Operating rules (shared)",
+      lookupTitle: "Quick lookup", lookupLead: "Select options below for tailored guidance.",
+      lkGoal: "Purpose", lkLine: "Product line", lkRegion: "Region / reward policy", lkBrand: "Brand (Snack)", lkPosm: "POSM type",
+      lkGoalProcess: "Process / PIC / deadlines", lkGoalReward: "Rewards & standards", lkGoalPosm: "Snack plan (NPP & POSM)",
+      lkGoalFoc: "FOC & payment eligibility", lkGoalForms: "Required forms",
+      lkLineAll: "General (TT)", lkLineSnack: "Snack (Mix & BiteeZ)", lkLineMien: "Noodles",
+      lkRegNational: "National (standard deck)", lkRegMekong: "Mekong Delta", lkRegNorth: "North (POSM totals)", lkRegSouth: "South (POSM totals)",
+      lkBrandNa: "—", lkBrandMix: "Mix", lkBrandBz: "BiteeZ", lkBrandBoth: "Mix + BiteeZ",
+      lkPosmNa: "—", lkPosmFrame: "Frame", lkPosmStandee: "Standee", lkPosmHanger: "Hanger",
+      lookupHint: "Tip: use the top menu to open the detailed section after reading results.",
+      progTitle: "Programs by product line",
+      progPart1: "Part 1: Display standards with images",
+      progPart2: "Part 2: Display rewards",
+      snackTitle: "Mix & BiteeZ — Frame / Standee / Hanger",
+      snackFrameRule: "Do not place BiteeZ inside Mix frame when there is no BiteeZ frame → display beside/below Mix frame per deck.",
+      snackStdBody: "<ul><li><strong>Mix Frame</strong>: min 2 trays, 1m length.</li><li><strong>BiteeZ Frame</strong>: min 2 trays, 1m, separate from Mix frame.</li><li><strong>Standee</strong>: listed SKUs · 0.6m × 1.4m.</li><li><strong>Hanger</strong>: Mix 50g/20g or BiteeZ 18g at shop front.</li></ul>",
+      snackImg1: "Frame",
+      snackImg2: "Standee",
+      snackImg3: "Hanger",
+      snackGuideTitle: "Display guidance (wrong vs correct)",
+      snackGuide1: "Standee & Hanger: do not use wrong brands/products — follow Mix, BiteeZ & Parteez standards",
+      snackGuide2: "Frame: no BiteeZ inside Mix frame — place beside/below when no dedicated BiteeZ frame",
+      rewardRegionLead: "Select a region for Snack (Mix & BiteeZ) rewards. Noodles rewards are listed below.",
+      regionSouth: "South", regionNorth: "North", regionMekong: "Mekong",
+      rewardSnackSouth: "Snack (Frame)", rewardSnackNorth: "Snack (Frame)", rewardSnackMekong: "Snack (Frame)",
+      rewardMienTitle: "Noodles",
+      mienTitle: "Song Long & Song Lân (Frame & shelf)", mienKhung: "Frame (Jan–Dec 2026)", mienKe: "Shelf (2 layouts)",
+      mienKhungStdList: "<li>SKUs: green bean & dong noodles 200g</li><li>Layout per spec (faces × layers)</li><li>Min: 1 tray, 1 SKU, 8 faces</li><li>Frame 1m × 0.8m</li>",
+      mienKeStdList: "<li><strong>Option 1</strong>: dry + fresh SKU (min faces per spec)</li><li><strong>Option 2</strong>: 3 trays, 5 faces each</li><li>Shelf: 1.3m H × 0.5m W × 0.25m D</li>",
+      mienRewardList: "<li><strong>Frame</strong>: 10 packs green bean 200g / store / month</li><li><strong>Shelf</strong>: 20 packs green bean 200g / store / month</li><li>Monthly promos may change</li>",
+      mienImg1: "Frame — 1m × 0.8m",
+      mienImg2: "Standee — layout 1 & 2 (1.3m H × 0.5m W × 0.25m D)",
+      posmTitle: "Snack display plan by NPP",
+      posmLegendTitle: "How to read the table",
+      posmLegendBody: "<li><strong>Allocation Plan</strong>: number of <em>stores</em> allowed to register for display (Frame / Standee).</li><li><strong>ALLOCATE POSM</strong>: maximum <em>POSM units</em> shipped to the NPP (Frame / Standee / Hanger) — not store count.</li><li>Mix and BiteeZ are separate column groups, matching Excel.</li>",
+      posmFilterHq: "Region", posmHqAll: "All", posmHqSouth: "South", posmHqNorth: "North",
+      posmFilterArea: "Area", posmAreaAll: "All",
+      posmFilterSearch: "Search NPP", posmSearchPh: "Code or name",
+      posmShowTotals: "Show Area / region / national subtotals",
+      posmTableTitle: "NPP detail", posmColHq: "HQ", posmColArea: "Area", posmColCode: "NPP code", posmColName: "Distributor",
+      posmColFrame: "Frame", posmColStandee: "Standee", posmColHanger: "Hanger",
+      posmGrpPlanMix: "Store plan — Mix (Allocation Plan)", posmGrpPlanBz: "Store plan — BiteeZ (Allocation Plan)",
+      posmGrpAllocMix: "POSM to NPP — Mix (ALLOCATE POSM)", posmGrpAllocBz: "POSM to NPP — BiteeZ (ALLOCATE POSM)",
+      posmRowCount: "{n} NPP · {t} rows shown",
+      posmDownload: "Download full Excel",
+      focTitle: "Display FOC & visit frequency", focLead: "Mandatory for sales — protects eligibility and display fees.",
+      focMustTitle: "When delivering display FOC, you must:",
+      focBlock: "Missing prior-period FOC form and photos → not eligible for next-month display fee payment.",
+      focVisitTitle: "Visit frequency", focVisitBody: "Visit, display check and photos at store at least twice per month.",
+      focNoticeTitle: "Display notice (scan)", focPdfLink: "Open original PDF",
+      formsTitle: "Forms — download & fill offline", formsLead: "Download templates only; no online forms.", refDocsTitle: "Reference decks / guidelines",
+      focMust: [
+        "Signed customer acknowledgment form for FOC receipt.",
+        "Photo of customer actually receiving FOC goods.",
+        "Post confirmation photos to the display group immediately after completion."
+      ],
+      steps: [
+        { title: "Propose display store & location", pic: "CDM / KAM", body: "Send customer info template to MKT, RTM, Sales Effectiveness." },
+        { title: "Approve display store", pic: "Sales Director", body: "" },
+        { title: "Update display customer list", pic: "RTM — every Friday", body: "Registered list + POSM stock at distributor." },
+        { title: "Prepare & deliver POSM to NPP", pic: "MKT, CS, Logistics", body: "" },
+        { title: "Sign display agreement", pic: "CDM/KAM & Customer", body: "" },
+        { title: "Monthly display report", pic: "Sales Effectiveness", body: "Submit by the 6th each month." },
+        { title: "Approve display fee", pic: "MKT / RTM", body: "2 display photos per store per month required." },
+        { title: "Pay display fee", pic: "Sales Effectiveness & Sales", body: "Prior month FOC acknowledgment required." },
+        { title: "Track agreement, FOC, effectiveness", pic: "RTM", body: "" }
+      ],
+      rules: [
+        "Display after the 20th: no fee for that month — counted from the 1st of next month.",
+        "Fee approval: 2 display photos per store per month.",
+        "Current month's display fee requires prior month's FOC acknowledgment (customer confirmation + FOC receipt photos).",
+        "Execution: key POSM in DMS."
+      ]
     }
+  };
 
-    function showUploadHint(message, success = false) {
-        uploadHint.innerHTML = message;
-        uploadHint.className = success ? 'upload-hint success' : 'upload-hint';
-        uploadHint.style.display = 'block';
+  const REWARD_HTML = {
+    nationalSouth: {
+      vi: `<ul>
+        <li><strong>Mix Frame</strong> (từ 12/2025): ≥2 mâm Mix, chiều dài 1m · DS tối thiểu <strong>4 triệu/tháng</strong> · Thưởng <strong>2 thùng Mix 50g/tháng</strong>.</li>
+        <li><strong>BiteeZ Frame</strong>: ≥2 mâm BiteeZ, chiều dài 1m · Mức 1: DS tối thiểu <strong>3 triệu/tháng</strong> → <strong>1.5 thùng BiteeZ 4.5g</strong>; Mức 2: DS tối thiểu <strong>2 triệu/tháng</strong> → <strong>1 thùng</strong>.</li>
+        <li>Shop &gt;100 thùng/tháng: có thể thương lượng thưởng thêm với MKT.</li>
+        <li>Hết FOC theo SKU: công ty có thể chuyển SKU khác <strong>giá trị tương đương</strong>.</li>
+      </ul>`,
+      en: `<ul>
+        <li><strong>Mix Frame</strong> (from Dec 2025): ≥2 Mix trays, 1m length · Min sales <strong>VND 4M/month</strong> · <strong>2 cartons Mix 50g/month</strong>.</li>
+        <li><strong>BiteeZ Frame</strong>: ≥2 BiteeZ trays, 1m length · Tier 1: min <strong>3M/month</strong> → <strong>1.5 ctns BiteeZ 4.5g</strong>; Tier 2: min <strong>2M/month</strong> → <strong>1 ctn</strong>.</li>
+        <li>&gt;100 cartons/month: extra reward negotiable with MKT.</li>
+        <li>If FOC SKU exhausted: equivalent-value SKU substitution.</li>
+      </ul>`
+    },
+    nationalNorth: {
+      vi: `<ul>
+        <li><strong>Mix Frame</strong> (từ 12/2025): ≥2 mâm Mix, chiều dài 1m · DS tối thiểu <strong>5 triệu/tháng</strong> · Thưởng <strong>2 thùng Mix 50g/tháng</strong>.</li>
+        <li><strong>BiteeZ Frame</strong>: ≥2 mâm BiteeZ, chiều dài 1m · Mức 1: DS tối thiểu <strong>3 triệu/tháng</strong> → <strong>1.5 thùng BiteeZ 4.5g</strong>; Mức 2: DS tối thiểu <strong>2 triệu/tháng</strong> → <strong>1 thùng</strong>.</li>
+        <li>Shop &gt;100 thùng/tháng: có thể thương lượng thưởng thêm với MKT.</li>
+        <li>Hết FOC theo SKU: công ty có thể chuyển SKU khác <strong>giá trị tương đương</strong>.</li>
+      </ul>`,
+      en: `<ul>
+        <li><strong>Mix Frame</strong> (from Dec 2025): ≥2 Mix trays, 1m length · Min sales <strong>VND 5M/month</strong> · <strong>2 cartons Mix 50g/month</strong>.</li>
+        <li><strong>BiteeZ Frame</strong>: ≥2 BiteeZ trays, 1m length · Tier 1: min <strong>3M/month</strong> → <strong>1.5 ctns BiteeZ 4.5g</strong>; Tier 2: min <strong>2M/month</strong> → <strong>1 ctn</strong>.</li>
+        <li>&gt;100 cartons/month: extra reward negotiable with MKT.</li>
+        <li>If FOC SKU exhausted: equivalent-value SKU substitution.</li>
+      </ul>`
+    },
+    mekong: {
+      vi: `<ul>
+        <li><strong>Mix Frame</strong>: ≥2 mâm Mix, chiều dài 1m · Mức 1: DS tối thiểu <strong>4 triệu/tháng</strong> → <strong>2 thùng Mix 50g</strong>; Mức 2: DS tối thiểu <strong>3 triệu/tháng</strong> → <strong>1 thùng Mix 50g</strong>.</li>
+        <li><strong>BiteeZ Frame</strong>: ≥2 mâm BiteeZ, chiều dài 1m · Mức 1: DS tối thiểu <strong>3 triệu/tháng</strong> → <strong>1.5 thùng BiteeZ 4.5g</strong>; Mức 2: DS tối thiểu <strong>2 triệu/tháng</strong> → <strong>1 thùng</strong>.</li>
+        <li>Shop &gt;100 thùng/tháng: có thể thương lượng thưởng thêm với MKT.</li>
+        <li>Hết FOC theo SKU: công ty có thể chuyển SKU khác <strong>giá trị tương đương</strong>.</li>
+      </ul>`,
+      en: `<ul>
+        <li><strong>Mix Frame</strong>: ≥2 Mix trays, 1m length · Tier 1: min <strong>4M/month</strong> → <strong>2 Mix 50g</strong>; Tier 2: min <strong>3M/month</strong> → <strong>1 Mix 50g</strong>.</li>
+        <li><strong>BiteeZ Frame</strong>: ≥2 BiteeZ trays, 1m length · Tier 1: min <strong>3M/month</strong> → <strong>1.5 ctns BiteeZ 4.5g</strong>; Tier 2: min <strong>2M/month</strong> → <strong>1 ctn</strong>.</li>
+        <li>&gt;100 cartons/month: extra reward negotiable with MKT.</li>
+        <li>If FOC SKU exhausted: equivalent-value SKU substitution.</li>
+      </ul>`
+    },
+    standee: {
+      vi: `<ul>
+        <li><strong>Standee</strong> (từ 01/07/2026): BiteeZ 18g &amp; Parteez / Mix 50g (ớt cay, rong biển, gà cay HQ) · Kích thước 0.6×1.4m · DS tối thiểu <strong>1.5 triệu/tháng</strong> · Thưởng: 1 thùng BiteeZ 4.5g hoặc 1 thùng Mix 50g.</li>
+        <li><strong>Hanger</strong> (từ 12/2025): Mix 50g/20g hoặc BiteeZ 18g treo trước cửa shop · Thưởng: <strong>miễn phí</strong> POSM.</li>
+      </ul>`,
+      en: `<ul>
+        <li><strong>Standee</strong> (from Jul 2026): BiteeZ 18g &amp; Parteez / Mix 50g · Size 0.6×1.4m · Min sales <strong>1.5M/month</strong> · Reward: 1 ctn BiteeZ 4.5g or 1 ctn Mix 50g.</li>
+        <li><strong>Hanger</strong> (from Dec 2025): Mix 50g/20g or BiteeZ 18g hung in front of store · POSM <strong>free</strong>.</li>
+      </ul>`
     }
+  };
 
-    function hideUploadHint() {
-        uploadHint.style.display = 'none';
-        uploadHint.innerHTML = '';
-    }
+  const FORMS = [
+    { nameVi: "Biên bản đăng ký trưng bày", nameEn: "Display registration form", descVi: "Excel", descEn: "Excel", href: "form%20m%E1%BA%ABu/Danh%20S%C3%A1ch%20Kh%C3%A1ch%20H%C3%A0ng%20%C4%90%C4%83ng%20K%C3%BD%20Tr%C6%B0ng%20B%C3%A0y.xlsx" },
+    { nameVi: "Thông tin khách hàng (ảnh vị trí trưng bày)", nameEn: "Customer information (display location photos)", descVi: "PPT", descEn: "PPT", href: "form%20m%E1%BA%ABu/CUSTOMER%20INFORMATION%20(update).pptx%20%5BRead-Only%5D%20(1).pptx" },
+    { nameVi: "Biên bản xác nhận trả trưng bày (FOC)", nameEn: "FOC display payment acknowledgment", descVi: "Excel", descEn: "Excel", href: "form%20m%E1%BA%ABu/BI%C3%8AN%20B%E1%BA%A2N%20X%C3%81C%20NH%E1%BA%ACN%20TR%E1%BA%A2%20TR%C6%AFNG%20B%C3%80Y.xlsx" },
+    { nameVi: "Biên bản hỗ trợ trưng bày (Hợp đồng trưng bày)", nameEn: "Display support agreement (display contract)", descVi: "Word", descEn: "Word", href: "form%20m%E1%BA%ABu/Bi%C3%AAn%20b%E1%BA%A3n%20h%E1%BB%97%20tr%E1%BB%A3%20Tr%C6%B0ng%20b%C3%A0y%20form%20(update).doc" }
+  ];
 
-    function showDashboardPlaceholder(message) {
-        dashboardPlaceholder.innerHTML = message;
-        dashboardPlaceholder.style.display = 'block';
-        avgTableContainer.style.display = 'none';
-        dashboard.style.display = 'block';
-    }
+  const REF_DOCS = [
+    { label: "Display process - TT Channel.pptx", href: "Display%20process%20-%20TT%20Channel.pptx" },
+    { label: "Display project [BiteeZ & Mix] - New.pptx", href: "Display%20project%20TT%20Channel%20%5BBiteeZ%20%26%20Mix%5D%20-%20New.pptx" },
+    { label: "Display project — Mekong Delta.pptx", href: "Display%20project%20TT%20Channel%20%5BBiteeZ%20%26%20Mix%5D%20-%20apply%20for%20Mekong%20Delta.pptx" },
+    { label: "Chương trình Miến TT (lần 3).pptx", href: "Ch%C6%B0%C6%A1ng%20tr%C3%ACnh%20tr%C6%B0ng%20b%C3%A0y%20mi%E1%BA%BFn%20k%C3%AAnh%20TT%20-%20c%E1%BA%ADp%20nh%E1%BA%ADt%20l%E1%BA%A7n%203.pptx" },
+  ];
 
-    function hideDashboardPlaceholder() {
-        dashboardPlaceholder.style.display = 'none';
-        avgTableContainer.style.display = 'block';
-    }
+  let lang = "vi";
 
-    function renderStatusBadge(elId, statusKey) {
-        const el = document.getElementById(elId);
-        const lang = langData[curLang];
-        const mapStatus = {
-            idle:    { text: lang.statusEmpty,   color: '#64748b', bold: false },
-            loading: { text: lang.statusLoading, color: '#ea580c', bold: true },
-            done:    { text: lang.statusDone,    color: '#16a34a', bold: true },
-            error:   { text: lang.statusError,   color: '#dc2626', bold: true }
-        };
-        const s = mapStatus[statusKey] || mapStatus.idle;
-        el.innerHTML = `<span style="color:${s.color};${s.bold ? ' font-weight:bold;' : ''}">${s.text}</span>`;
-    }
+  function t(key) {
+    return (I18N[lang][key] != null) ? I18N[lang][key] : key;
+  }
 
-    function refreshStatusBadges() {
-        renderStatusBadge('statusRoute', loadStatus.route);
-    }
-
-    function setLang(lang) {
-        curLang = lang;
-        document.getElementById('page-title').innerText = langData[curLang].pageTitle;
-        document.querySelectorAll('.lang-btn').forEach(btn => btn.classList.remove('active'));
-        document.getElementById('btn-lang-' + lang).classList.add('active');
-
-        document.querySelectorAll('[data-i18n]').forEach(el => {
-            const key = el.getAttribute('data-i18n');
-            if (langData[curLang][key]) el.innerHTML = langData[curLang][key];
-        });
-
-        if (!selNPP.value && selNPP.options.length > 0) selNPP.options[0].text = langData[curLang].optNPP;
-        if (!selNV.value && selNV.options.length > 0) selNV.options[0].text = langData[curLang].optNV;
-
-        refreshStatusBadges();
-        if (globalReportTime) {
-            document.getElementById('report-time').innerText = langData[curLang].lblTime + globalReportTime;
-        }
-        if (selNV.value) processDataAndRender();
-    }
-
-    function isValidRouteRow(row) {
-        if (!row || !row[COL.NPP] || !row[COL.NV] || !row[COL.NGAY]) return false;
-        if (String(row[0] || '').trim().toUpperCase() === 'STT') return false;
-        return true;
-    }
-
-    function normalizeTimeValue(value) {
-        if (value === null || value === undefined || value === '') return '';
-        if (value instanceof Date && !isNaN(value.getTime())) {
-            return `${String(value.getHours()).padStart(2, '0')}:${String(value.getMinutes()).padStart(2, '0')}:${String(value.getSeconds()).padStart(2, '0')}`;
-        }
-        if (typeof value === 'number' && !isNaN(value)) {
-            let dayFrac = value;
-            if (value >= 1) dayFrac = value % 1;
-            if (dayFrac >= 0 && dayFrac < 1) {
-                const totalSecs = Math.round(dayFrac * 24 * 3600);
-                const h = Math.floor(totalSecs / 3600);
-                const m = Math.floor((totalSecs % 3600) / 60);
-                const s = totalSecs % 60;
-                return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-            }
-        }
-        const str = String(value).trim();
-        if (/^\d{1,2}:\d{2}$/.test(str)) return `${str}:00`;
-        if (/^\d{1,2}:\d{2}:\d{2}$/.test(str)) return str;
-        return str;
-    }
-
-    function normalizeDurationValue(value) {
-        if (value === null || value === undefined || value === '') return '';
-        if (value instanceof Date && !isNaN(value.getTime())) {
-            const totalSecs = value.getHours() * 3600 + value.getMinutes() * 60 + value.getSeconds();
-            const h = Math.floor(totalSecs / 3600);
-            const m = Math.floor((totalSecs % 3600) / 60);
-            const s = totalSecs % 60;
-            return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-        }
-        if (typeof value === 'number' && !isNaN(value)) {
-            if (value >= 0 && value < 1) {
-                const totalSecs = Math.round(value * 24 * 3600);
-                const h = Math.floor(totalSecs / 3600);
-                const m = Math.floor((totalSecs % 3600) / 60);
-                const s = totalSecs % 60;
-                return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-            }
-        }
-        return String(value).trim().replace(/'/g, '');
-    }
-
-    function normalizeStt(value) {
-        const n = Number(value);
-        return Number.isFinite(n) ? n : null;
-    }
-
-    function normalizeRouteRow(row) {
-        if (!row) return row;
-        const copy = row.slice();
-        copy[COL.NGAY] = normalizeNgay(copy[COL.NGAY]);
-        copy[COL.TIME_IN] = normalizeTimeValue(copy[COL.TIME_IN]);
-        copy[COL.TIME_OUT] = normalizeTimeValue(copy[COL.TIME_OUT]);
-        copy[COL.TIME_TOTAL] = normalizeDurationValue(copy[COL.TIME_TOTAL]);
-        if (copy[COL.STT_GHE] !== null && copy[COL.STT_GHE] !== undefined && copy[COL.STT_GHE] !== '') {
-            const stt = normalizeStt(copy[COL.STT_GHE]);
-            copy[COL.STT_GHE] = stt === null ? copy[COL.STT_GHE] : stt;
-        }
-        return copy;
-    }
-
-    function normalizeNgay(value) {
-        if (value === null || value === undefined || value === '') return '';
-        if (value instanceof Date && !isNaN(value.getTime())) {
-            return `${String(value.getDate()).padStart(2, '0')}/${String(value.getMonth() + 1).padStart(2, '0')}/${value.getFullYear()}`;
-        }
-        if (typeof value === 'number' && value > 20000 && value < 80000) {
-            const parsed = XLSX.SSF.parse_date_code(value);
-            if (parsed) {
-                return `${String(parsed.d).padStart(2, '0')}/${String(parsed.m).padStart(2, '0')}/${parsed.y}`;
-            }
-        }
-        return String(value).trim();
-    }
-
-    function hasValidTime(timeStr) {
-        return timeStrToMinutes(timeStr) > 0;
-    }
-
-    function isFirstVisit(row) {
-        return normalizeStt(row[COL.STT_GHE]) === 1;
-    }
-
-    function getMaxVisitOrder(rows) {
-        const orders = rows
-            .map(r => normalizeStt(r[COL.STT_GHE]))
-            .filter(n => n !== null && n > 0);
-        return orders.length ? Math.max(...orders) : null;
-    }
-
-    function isLastVisit(row, maxOrder) {
-        return maxOrder !== null && normalizeStt(row[COL.STT_GHE]) === maxOrder;
-    }
-
-    function groupRowsByDateAndRoute(rows) {
-        const groups = {};
-        rows.forEach(r => {
-            const key = `${r[COL.NGAY] || ''}|${r[COL.TEN_TUYEN] || ''}`;
-            if (!groups[key]) groups[key] = [];
-            groups[key].push(r);
-        });
-        return Object.values(groups);
-    }
-
-    function getLastVisitCheckoutMins(rows) {
-        const mins = [];
-        groupRowsByDateAndRoute(rows).forEach(groupRows => {
-            const maxOrder = getMaxVisitOrder(groupRows);
-            if (maxOrder === null) return;
-            groupRows
-                .filter(r => isLastVisit(r, maxOrder) && hasValidTime(r[COL.TIME_OUT]))
-                .forEach(r => {
-                    const m = timeStrToMinutes(r[COL.TIME_OUT]);
-                    if (m > 0) mins.push(m);
-                });
-        });
-        return mins;
-    }
-
-    function getDailyEarliestCheckinMins(dateRows) {
-        const mins = dateRows
-            .map(r => timeStrToMinutes(r[COL.TIME_IN]))
-            .filter(m => m > 0);
-        if (!mins.length) return null;
-        return Math.min(...mins);
-    }
-
-    function getDailyLatestCheckoutMins(dateRows) {
-        const mins = dateRows
-            .map(r => timeStrToMinutes(r[COL.TIME_OUT]))
-            .filter(m => m > 0);
-        if (!mins.length) return null;
-        return Math.max(...mins);
-    }
-
-    function getDailyCheckinCheckout(dateRows) {
-        const earliestIn = getDailyEarliestCheckinMins(dateRows);
-        const latestOut = getDailyLatestCheckoutMins(dateRows);
-        if (earliestIn === null || latestOut === null) return null;
-        return { earliestIn, latestOut };
-    }
-
-    function isCountableWorkDay(dateRows) {
-        return getDailyCheckinCheckout(dateRows) !== null;
-    }
-
-    function getDailyCheckinCheckoutSpanMins(dateRows) {
-        const earliestIn = getDailyEarliestCheckinMins(dateRows);
-        const latestOut = getDailyLatestCheckoutMins(dateRows);
-        if (earliestIn === null || latestOut === null) return 0;
-        return Math.max(0, latestOut - earliestIn);
-    }
-
-    function parseDurationMinutes(value) {
-        if (value === null || value === undefined || value === '') return 0;
-        if (value instanceof Date && !isNaN(value.getTime())) {
-            return value.getHours() * 60 + value.getMinutes() + value.getSeconds() / 60;
-        }
-        if (typeof value === 'number' && !isNaN(value)) {
-            if (value >= 0 && value < 1) {
-                return value * 24 * 60;
-            }
-            return value;
-        }
-        const cleaned = String(value).trim().replace(/'/g, '');
-        if (!cleaned) return 0;
-        if (cleaned.includes(':')) {
-            return timeStrToMinutes(cleaned);
-        }
-        const num = parseFloat(cleaned);
-        return isNaN(num) ? 0 : num;
-    }
-
-    function getDailySumifsCustomerWorkMins(groupRows) {
-        return groupRows.reduce((sum, r) => sum + parseDurationMinutes(r[COL.TIME_TOTAL]), 0);
-    }
-
-    function getExcelCustomerWorkAvgMins(data) {
-        const groups = groupRowsByDateAndRoute(data);
-        const sumsForAverage = [];
-
-        groups.forEach(groupRows => {
-            const maxStt = getMaxVisitOrder(groupRows);
-            if (maxStt === null) return;
-
-            const dailySumMins = getDailySumifsCustomerWorkMins(groupRows);
-            groupRows.forEach(r => {
-                if (normalizeStt(r[COL.STT_GHE]) === maxStt) {
-                    sumsForAverage.push(dailySumMins);
-                }
-            });
-        });
-
-        if (!sumsForAverage.length) return 0;
-        return sumsForAverage.reduce((sum, m) => sum + m, 0) / sumsForAverage.length;
-    }
-
-    function countUniqueCustomers(rows) {
-        return new Set(rows.map(r => r[COL.MA_KH]).filter(Boolean)).size;
-    }
-
-    function parseNgay(ngayStr) {
-        if (!ngayStr) return null;
-        const parts = String(ngayStr).trim().split('/');
-        if (parts.length !== 3) return null;
-        return new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
-    }
-
-    async function handleRouteUpload(event) {
-        const file = event.target.files && event.target.files[0];
-        if (!file) return;
-
-        loadStatus.route = 'loading';
-        refreshStatusBadges();
-
-        try {
-            const buffer = await file.arrayBuffer();
-            const wb = XLSX.read(buffer, { type: 'array', cellDates: false });
-            const jsonRoute = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: true, defval: null });
-
-            if (jsonRoute.length > 1 && jsonRoute[1][4] !== undefined) {
-                globalReportTime = jsonRoute[1][4];
-                document.getElementById('report-time').innerText = langData[curLang].lblTime + globalReportTime;
-            } else {
-                globalReportTime = "";
-                document.getElementById('report-time').innerText = "";
-            }
-
-            rawRouteData = jsonRoute.filter(isValidRouteRow).map(normalizeRouteRow);
-            if (rawRouteData.length === 0) throw new Error("No valid rows");
-
-            loadStatus.route = 'done';
-            refreshStatusBadges();
-            updateFilters(rawRouteData.length);
-        } catch (err) {
-            console.error(err);
-            loadStatus.route = 'error';
-            refreshStatusBadges();
-            hideUploadHint();
-            alert(langData[curLang].alertFileError);
-        } finally {
-            event.target.value = "";
-        }
-    }
-
-    function updateFilters(rowCount = 0) {
-        const npps = [...new Set(rawRouteData.map(r => r[COL.NPP]))].filter(Boolean);
-        selNPP.innerHTML = `<option value="">${langData[curLang].optNPP}</option>`;
-        npps.forEach(npp => { selNPP.innerHTML += `<option value="${npp}">${npp}</option>`; });
-        selNPP.disabled = false;
-
-        selNV.innerHTML = `<option value="">${langData[curLang].optNV}</option>`;
-        selNV.disabled = true;
-        resetDashboard();
-
-        if (rowCount > 0) {
-            showUploadHint(formatHint(langData[curLang].hintSelectFilters, { rows: rowCount.toLocaleString() }));
-            showDashboardPlaceholder(langData[curLang].placeholderSelect);
-        }
-
-        if (npps.length === 1) {
-            selNPP.value = npps[0];
-            selNPP.dispatchEvent(new Event('change'));
-        }
-    }
-
-    selNPP.addEventListener('change', () => {
-        const npp = selNPP.value;
-        if (!npp) {
-            resetDashboard();
-            selNV.disabled = true;
-            return;
-        }
-
-        const nvs = [...new Set(rawRouteData.filter(r => r[COL.NPP] === npp).map(r => r[COL.NV]))].filter(Boolean);
-        selNV.innerHTML = `<option value="">${langData[curLang].optNV}</option>`;
-        nvs.forEach(nv => { selNV.innerHTML += `<option value="${nv}">${nv}</option>`; });
-        selNV.disabled = false;
-        resetDashboard();
-        if (rawRouteData.length > 0) {
-            showDashboardPlaceholder(langData[curLang].placeholderSelect);
-        }
-
-        if (nvs.length === 1) {
-            selNV.value = nvs[0];
-            selNV.dispatchEvent(new Event('change'));
-        }
+  function applyI18n() {
+    document.documentElement.lang = lang;
+    document.querySelectorAll("[data-i18n]").forEach((el) => {
+      const key = el.getAttribute("data-i18n");
+      const val = t(key);
+      if (typeof val !== "string") return;
+      if (val.indexOf("<") >= 0) el.innerHTML = val;
+      else el.textContent = val;
     });
-
-    selNV.addEventListener('change', () => {
-        const nv = selNV.value;
-        if (!nv) {
-            resetDashboard();
-            if (rawRouteData.length > 0) {
-                showDashboardPlaceholder(langData[curLang].placeholderSelect);
-            }
-            return;
-        }
-
-        document.getElementById('avatar-img').src = `New folder/images/${nv}.PNG`;
-        processDataAndRender();
+    document.querySelectorAll("[data-i18n-opt]").forEach((el) => {
+      el.textContent = t(el.getAttribute("data-i18n-opt"));
     });
+    document.querySelectorAll("[data-i18n-html]").forEach((el) => {
+      el.innerHTML = t(el.getAttribute("data-i18n-html"));
+    });
+    document.querySelectorAll("[data-i18n-placeholder]").forEach((el) => {
+      el.placeholder = t(el.getAttribute("data-i18n-placeholder"));
+    });
+    fillPosmAreaOptions();
+    renderTimeline();
+    renderRules();
+    renderFocList();
+    renderRewards();
+    renderForms();
+    runLookup();
+    renderPosm();
+  }
 
-    function resetDashboard() {
-        dashboard.style.display = 'none';
-        hideDashboardPlaceholder();
-        document.getElementById('avg-table-body').innerHTML = '';
-        routeLayer.clearLayers();
+  function renderTimeline() {
+    const box = document.getElementById("timeline-steps");
+    box.innerHTML = t("steps").map((s, i) => `
+      <article class="timeline-step">
+        <div class="step-num">${i + 1}</div>
+        <div>
+          <p class="step-title">${s.title}</p>
+          <p class="step-pic">${s.pic}</p>
+          ${s.body ? `<p class="step-body">${s.body}</p>` : ""}
+        </div>
+      </article>`).join("");
+  }
+
+  function renderRules() {
+    document.getElementById("rules-list").innerHTML = t("rules").map((r) => `<li>${r}</li>`).join("");
+  }
+
+  function renderFocList() {
+    document.getElementById("foc-must-list").innerHTML = t("focMust").map((r) => `<li>${r}</li>`).join("");
+  }
+
+  function renderRewards() {
+    const sub = lang === "vi" ? "Standee & Hanger" : "Standee & Hanger";
+    const block = (frameHtml) =>
+      frameHtml + `<h5 style="margin:16px 0 8px;font-size:14px;color:var(--c-royal)">${sub}</h5>` + REWARD_HTML.standee[lang];
+    document.getElementById("reward-south-snack").innerHTML = block(REWARD_HTML.nationalSouth[lang]);
+    document.getElementById("reward-north-snack").innerHTML = block(REWARD_HTML.nationalNorth[lang]);
+    document.getElementById("reward-mekong-snack").innerHTML = block(REWARD_HTML.mekong[lang]);
+  }
+
+  function showRewardRegion(region) {
+    document.querySelectorAll(".region-tab").forEach((b) => {
+      b.classList.toggle("is-active", b.dataset.region === region);
+    });
+    document.querySelectorAll(".reward-region-panel").forEach((p) => {
+      p.hidden = p.dataset.region !== region;
+    });
+  }
+
+  function renderForms() {
+    document.getElementById("form-downloads").innerHTML = FORMS.map((f) => `
+      <li>
+        <div class="form-meta">
+          <p class="form-name">${lang === "vi" ? f.nameVi : f.nameEn}</p>
+          <p class="form-desc">${lang === "vi" ? f.descVi : f.descEn}</p>
+        </div>
+        <a class="btn btn-primary" href="${f.href}" download>${lang === "vi" ? "Tải xuống" : "Download"}</a>
+      </li>`).join("");
+    document.getElementById("ref-docs-list").innerHTML = REF_DOCS.map((d) =>
+      `<li><a href="${d.href}" download>${d.label}</a></li>`
+    ).join("");
+  }
+
+  function showSection(id) {
+    document.querySelectorAll(".panel-section").forEach((s) => { s.hidden = s.id !== id; });
+    document.querySelectorAll(".nav-tab").forEach((b) => {
+      b.classList.toggle("is-active", b.dataset.section === id);
+    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function runLookup() {
+    const goal = document.getElementById("lk-goal").value;
+    const line = document.getElementById("lk-line").value;
+    const region = document.getElementById("lk-region").value;
+    const brand = document.getElementById("lk-brand").value;
+    const posm = document.getElementById("lk-posm").value;
+    const out = document.getElementById("lookup-result");
+    const parts = [];
+    const vi = lang === "vi";
+
+    if (goal === "process") {
+      parts.push(vi ? "<strong>Gợi ý:</strong> Mở mục <em>9 bước quy trình</em>." : "<strong>Go to:</strong> <em>9-step process</em>.");
+      if (line === "snack") parts.push(vi ? "Snack: bước 4–5 (POSM, biên bản) và bước 6–8 (báo cáo, trả phí)." : "Snack: steps 4–8 for POSM, reporting, fees.");
     }
-
-    function getDateStats(dateRows, nv, thu) {
-        const withTime = dateRows.filter(r => hasValidTime(r[COL.TIME_IN]));
-        const earliestIn = getDailyEarliestCheckinMins(dateRows);
-        const latestOut = getDailyLatestCheckoutMins(dateRows);
-        const checkIn = earliestIn !== null ? minutesToTimeStrWithSeconds(earliestIn) : '--';
-        const checkOut = latestOut !== null ? minutesToTimeStrWithSeconds(latestOut) : '--';
-        const checkinCheckoutSpanMins = getDailyCheckinCheckoutSpanMins(dateRows);
-        const visitedCount = countUniqueCustomers(withTime);
-
-        return {
-            ngay: dateRows[0]?.[COL.NGAY] || '',
-            thu,
-            checkIn,
-            checkOut,
-            checkinCheckoutSpanMins,
-            visitedCount,
-            minIn: earliestIn !== null ? earliestIn : Infinity,
-            maxOut: latestOut !== null ? latestOut : -Infinity
-        };
+    if (goal === "reward") {
+      parts.push(vi ? "<strong>Gợi ý:</strong> Mở <em>Chương trình theo ngành</em>." : "<strong>Go to:</strong> <em>Programs</em>.");
+      if (line === "snack") {
+        if (region === "mekong") parts.push(vi ? "Mở <strong>Mekong</strong> — Mix 2 mức (4M / 3M), BiteeZ 2 mức (3M / 2M)." : "Open <strong>Mekong</strong> for Mix and BiteeZ tiers.");
+        else if (region === "south") parts.push(vi ? "Mở <strong>South</strong> — Mix DS tối thiểu 4 triệu/tháng." : "Open <strong>South</strong> — Mix min 4M/month.");
+        else if (region === "north") parts.push(vi ? "Mở <strong>North</strong> — Mix DS tối thiểu 5 triệu/tháng." : "Open <strong>North</strong> — Mix min 5M/month.");
+        else parts.push(vi ? "Chọn vùng <strong>South / North / Mekong</strong> trong Phần 2." : "Pick <strong>South / North / Mekong</strong> in Part 2.");
+        if (brand === "mix" && posm === "frame") parts.push(vi ? "Mix Frame: 2 mâm, 2 thùng Mix 50g (hoặc 2/1 thùng tại ĐBSCL)." : "Mix Frame: 2 trays, reward per region table.");
+        if (brand === "biteez" && posm === "frame") parts.push(vi ? "BiteeZ: 2 mức theo DS 3M / 2M." : "BiteeZ: two tiers at 3M / 2M sales.");
+      }
+      if (line === "mien") parts.push(vi ? "Xem khung & kệ — thưởng gói/tháng." : "See frame & shelf monthly pack rewards.");
     }
-
-    function getAllDates(data) {
-        return [...new Set(data.map(r => r[COL.NGAY]).filter(Boolean))]
-            .sort((a, b) => parseNgay(a) - parseNgay(b));
+    if (goal === "posm") {
+      parts.push(vi ? "<strong>Gợi ý:</strong> Mục <em>Kế hoạch Snack (NPP & POSM)</em>." : "<strong>Go to:</strong> <em>Snack plan (NPP & POSM)</em>.");
+      if (region === "north" || region === "south") {
+        parts.push(vi ? `Lọc bảng: <strong>${region === "north" ? "Tổng Bắc" : "Tổng Nam"}</strong>.` : `Filter: <strong>${region} total</strong>.`);
+      }
     }
-
-    function getPeriodLabel(dates) {
-        if (!dates.length) return '--';
-        if (dates.length === 1) return dates[0];
-        return `${dates[0]} - ${dates[dates.length - 1]}`;
+    if (goal === "foc") {
+      parts.push(vi ? "<strong>Gợi ý:</strong> Mục <em>FOC & viếng thăm</em> + biên bản FOC trong Forms." : "<strong>Go to:</strong> <em>FOC & visits</em> + FOC form.");
     }
-
-    function processDataAndRender() {
-        const npp = selNPP.value;
-        const nv = selNV.value;
-        if (!npp || !nv) {
-            resetDashboard();
-            return;
-        }
-
-        const currentRoute = rawRouteData.filter(r => r[COL.NPP] === npp && r[COL.NV] === nv);
-        if (currentRoute.length === 0) {
-            alert(langData[curLang].alertNoRoute);
-            resetDashboard();
-            return;
-        }
-
-        drawMap(currentRoute);
-        renderAvgTable(currentRoute, nv);
-        hideDashboardPlaceholder();
-        dashboard.style.display = 'block';
-        showUploadHint(formatHint(langData[curLang].hintAutoLoaded, { rows: rawRouteData.length.toLocaleString() }), true);
+    if (goal === "forms") {
+      parts.push(vi ? "<strong>Gợi ý:</strong> Mục <em>Form mẫu</em>." : "<strong>Go to:</strong> <em>Form templates</em>.");
+      if (line === "snack") parts.push(vi ? "Đăng ký CH (SNACK), Customer Information, Biên bản FOC." : "Registration (SNACK), Customer Information, FOC form.");
+      if (line === "mien") parts.push(vi ? "Đăng ký CH (sheet MIẾN)." : "Registration (Noodles sheet).");
     }
+    if (!parts.length) parts.push(vi ? "Chọn thêm tuỳ chọn để thu hẹp kết quả." : "Adjust filters to narrow results.");
 
-    function drawMap(data) {
-        routeLayer.clearLayers();
-        const allLatLngs = [];
+    const jump = [];
+    if (goal === "process") jump.push(["timeline", vi ? "Xem quy trình" : "View process"]);
+    if (goal === "reward") jump.push(["programs", vi ? "Xem chương trình" : "View programs"]);
+    if (goal === "posm") jump.push(["posm", vi ? "Xem POSM" : "View POSM"]);
+    if (goal === "foc") jump.push(["foc", vi ? "Xem FOC" : "View FOC"]);
+    if (goal === "forms") jump.push(["forms", vi ? "Tải form mẫu" : "Download templates"]);
 
-        const byDate = {};
-        data.forEach(r => {
-            if (!hasValidTime(r[COL.TIME_IN])) return;
-            const ngay = r[COL.NGAY];
-            if (!byDate[ngay]) byDate[ngay] = [];
-            byDate[ngay].push(r);
-        });
+    out.innerHTML = parts.map((p) => `<p>${p}</p>`).join("") +
+      (jump.length ? `<p>${jump.map(([id, lbl]) => `<button type="button" class="btn btn-ghost lookup-jump" data-jump="${id}">${lbl}</button>`).join(" ")}</p>` : "");
+    out.querySelectorAll(".lookup-jump").forEach((btn) => {
+      btn.addEventListener("click", () => showSection(btn.dataset.jump));
+    });
+  }
 
-        Object.keys(byDate).sort((a, b) => parseNgay(a) - parseNgay(b)).forEach(ngay => {
-            const dayData = byDate[ngay];
-            const thu = dayData[0]?.[COL.THU];
-            const color = colorMap[thu] || '#3b82f6';
-            const dayLatLngs = [];
+  function posmRowClass(kind) {
+    if (kind === "areaTotal") return "posm-area-total";
+    if (kind === "regionTotal") return "posm-region-total";
+    if (kind === "national") return "posm-national-total";
+    return "";
+  }
 
-            dayData.sort((a, b) => timeStrToMinutes(a[COL.TIME_IN]) - timeStrToMinutes(b[COL.TIME_IN]));
-            dayData.forEach((row, index) => {
-                const lat = parseFloat(row[COL.LAT]);
-                const lng = parseFloat(row[COL.LNG]);
-                const stt = index + 1;
-                if (!isNaN(lat) && !isNaN(lng)) {
-                    dayLatLngs.push([lat, lng]);
-                    allLatLngs.push([lat, lng]);
-                    const icon = L.divIcon({
-                        className: 'custom-div-icon',
-                        html: `<div class="route-marker" style="background-color: ${color};">${stt}</div>`,
-                        iconSize: [26, 26], iconAnchor: [13, 13]
-                    });
-                    const marker = L.marker([lat, lng], { icon });
-                    marker.bindPopup(`<b>${ngay} (${thu})</b><br><b>${row[COL.TEN_KH] || 'N/A'}</b><br>STT: ${stt}<br>Time: ${row[COL.TIME_IN] || 'N/A'}`);
-                    routeLayer.addLayer(marker);
-                }
-            });
+  function posmMatchesFilter(r) {
+    const hq = document.getElementById("posm-hq-filter").value;
+    const area = document.getElementById("posm-area-filter").value;
+    const q = document.getElementById("posm-search").value.trim().toLowerCase();
+    const showTotals = document.getElementById("posm-show-totals").checked;
 
-            if (dayLatLngs.length > 1) {
-                L.polyline(dayLatLngs, { color, weight: 3, opacity: 0.7, dashArray: '5, 5' }).addTo(routeLayer);
-            }
-        });
-
-        if (allLatLngs.length > 0) {
-            map.fitBounds(L.latLngBounds(allLatLngs), { padding: [30, 30] });
-        }
+    if (r.kind === "npp") {
+      if (hq !== "all" && r.region !== hq) return false;
+      if (area !== "all" && r.area !== area) return false;
+      if (q) {
+        const hay = `${r.code || ""} ${r.name || ""}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
     }
-
-    function renderAvgTable(data, nv) {
-        const tbody = document.getElementById('avg-table-body');
-        try {
-            const allDates = getAllDates(data);
-
-            let sumCheckinCheckoutSpanMins = 0;
-            let sumVisited = 0;
-            let dayCount = 0;
-            let sumCustomerWorkMins = 0;
-            let customerWorkDayCount = 0;
-            const dailyEarliestCheckins = [];
-            const dailyLatestCheckouts = [];
-
-            allDates.forEach(ngay => {
-                const dateRows = data.filter(r => r[COL.NGAY] === ngay);
-                if (dateRows.length === 0) return;
-
-                const dailyBounds = getDailyCheckinCheckout(dateRows);
-                if (!dailyBounds) return;
-
-                dayCount++;
-                dailyEarliestCheckins.push(dailyBounds.earliestIn);
-                dailyLatestCheckouts.push(dailyBounds.latestOut);
-                sumCheckinCheckoutSpanMins += Math.max(0, dailyBounds.latestOut - dailyBounds.earliestIn);
-
-                const withTime = dateRows.filter(r => hasValidTime(r[COL.TIME_IN]));
-                sumVisited += countUniqueCustomers(withTime);
-
-                const dayCustomerWorkMins = getExcelCustomerWorkAvgMins(dateRows);
-                if (dayCustomerWorkMins > 0) {
-                    sumCustomerWorkMins += dayCustomerWorkMins;
-                    customerWorkDayCount++;
-                }
-            });
-
-            const avgCheckin = dailyEarliestCheckins.length > 0
-                ? minutesToTimeStrWithSeconds(dailyEarliestCheckins.reduce((s, m) => s + m, 0) / dailyEarliestCheckins.length)
-                : '--';
-            const avgCheckout = dailyLatestCheckouts.length > 0
-                ? minutesToTimeStrWithSeconds(dailyLatestCheckouts.reduce((s, m) => s + m, 0) / dailyLatestCheckouts.length)
-                : '--';
-            const avgCheckinCheckoutWork = dayCount > 0
-                ? minutesToStr(sumCheckinCheckoutSpanMins / dayCount)
-                : minutesToStr(0);
-            const avgCustomerWork = customerWorkDayCount > 0
-                ? minutesToStr(sumCustomerWorkMins / customerWorkDayCount)
-                : minutesToStr(0);
-            const avgVisited = dayCount > 0 ? formatNum(sumVisited / dayCount, 1) : '0.0';
-            const periodLabel = getPeriodLabel(allDates);
-
-            tbody.innerHTML = `
-                <tr>
-                    <td class="day-cell">${periodLabel}<br><span style="font-size:11px;color:#64748b;">${dayCount} ${langData[curLang].lblWorkDays}</span></td>
-                    <td>${avgCheckin}</td>
-                    <td>${avgCheckout}</td>
-                    <td>${avgCheckinCheckoutWork}</td>
-                    <td>${avgCustomerWork}</td>
-                    <td>${avgVisited}</td>
-                </tr>
-            `;
-        } catch (err) {
-            console.error('renderAvgTable failed', err);
-            tbody.innerHTML = `<tr><td colspan="6" style="color:#dc2626;">Lỗi hiển thị bảng: ${err.message}</td></tr>`;
-        }
+    if (!showTotals) return false;
+    if (q) return false;
+    if (r.kind === "national") return hq === "all" && area === "all";
+    if (r.kind === "regionTotal") {
+      if (area !== "all") return false;
+      return hq === "all" || hq === r.region;
     }
-
-    function timeStrToMinutes(timeStr) {
-        if (timeStr === null || timeStr === undefined || timeStr === '') return 0;
-        if (timeStr instanceof Date && !isNaN(timeStr.getTime())) {
-            return timeStr.getHours() * 60 + timeStr.getMinutes() + timeStr.getSeconds() / 60;
-        }
-        if (typeof timeStr === 'number' && !isNaN(timeStr)) {
-            const normalized = normalizeTimeValue(timeStr);
-            return normalized ? timeStrToMinutes(normalized) : 0;
-        }
-        const p = timeStr.toString().trim().split(':');
-        const h = parseInt(p[0], 10) || 0;
-        const m = parseInt(p[1], 10) || 0;
-        const s = parseFloat(p[2]) || 0;
-        return h * 60 + m + s / 60;
+    if (r.kind === "areaTotal") {
+      if (hq !== "all" && r.region !== hq) return false;
+      if (area !== "all" && r.area !== area) return false;
+      return true;
     }
+    return false;
+  }
 
-    function minutesToTimeStr(mins) {
-        if (isNaN(mins) || mins <= 0) return '--';
-        const totalMins = Math.round(mins);
-        const h = Math.floor(totalMins / 60);
-        const m = totalMins % 60;
-        return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  function fillPosmAreaOptions() {
+    const data = window.DISPLAY_ALLOCATION_NPP || [];
+    const hq = document.getElementById("posm-hq-filter").value;
+    const sel = document.getElementById("posm-area-filter");
+    const prev = sel.value;
+    const areas = [...new Set(
+      data.filter((r) => r.kind === "npp" && (hq === "all" || r.region === hq)).map((r) => r.area).filter(Boolean)
+    )].sort();
+    const t = I18N[lang];
+    sel.innerHTML = `<option value="all">${t.posmAreaAll}</option>` +
+      areas.map((a) => `<option value="${a.replace(/"/g, "&quot;")}">${a}</option>`).join("");
+    if (areas.includes(prev)) sel.value = prev;
+  }
+
+  function renderPosm() {
+    const data = window.DISPLAY_ALLOCATION_NPP || [];
+    const rows = data.filter(posmMatchesFilter);
+    const nppCount = rows.filter((r) => r.kind === "npp").length;
+    const t = I18N[lang];
+    const countEl = document.getElementById("posm-row-count");
+    if (countEl) countEl.textContent = t.posmRowCount.replace("{n}", String(nppCount)).replace("{t}", String(rows.length));
+
+    const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;");
+    const cell = (v) => (v === 0 || v ? esc(v) : "—");
+    const tbody = document.querySelector("#posm-table tbody");
+    tbody.innerHTML = rows.map((r) => {
+      if (r.kind === "npp") {
+        return `<tr class="${posmRowClass(r.kind)}">
+          <td>${esc(r.hq || r.region)}</td>
+          <td>${esc(r.area)}</td>
+          <td>${esc(r.code)}</td>
+          <td class="posm-name">${esc(r.name)}</td>
+          <td>${cell(r.frameMixPlan)}</td><td>${cell(r.standeeMixPlan)}</td>
+          <td>${cell(r.frameBzPlan)}</td><td>${cell(r.standeeBzPlan)}</td>
+          <td>${cell(r.allocFrameMix)}</td><td>${cell(r.allocStandeeMix)}</td><td>${cell(r.allocHangerMix)}</td>
+          <td>${cell(r.allocFrameBz)}</td><td>${cell(r.allocStandeeBz)}</td><td>${cell(r.allocHangerBz)}</td>
+        </tr>`;
+      }
+      const label = r.label || r.area || (r.kind === "regionTotal" ? `TOTAL ${r.region}` : "National");
+      return `<tr class="${posmRowClass(r.kind)}">
+        <td colspan="4" class="posm-total-label">${esc(label)}</td>
+        <td>${cell(r.frameMixPlan)}</td><td>${cell(r.standeeMixPlan)}</td>
+        <td>${cell(r.frameBzPlan)}</td><td>${cell(r.standeeBzPlan)}</td>
+        <td>${cell(r.allocFrameMix)}</td><td>${cell(r.allocStandeeMix)}</td><td>${cell(r.allocHangerMix)}</td>
+        <td>${cell(r.allocFrameBz)}</td><td>${cell(r.allocStandeeBz)}</td><td>${cell(r.allocHangerBz)}</td>
+      </tr>`;
+    }).join("");
+  }
+
+  document.querySelectorAll(".lang-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      lang = btn.dataset.lang;
+      document.querySelectorAll(".lang-btn").forEach((b) => b.classList.toggle("is-active", b === btn));
+      applyI18n();
+    });
+  });
+
+  document.querySelectorAll(".nav-tab").forEach((tab) => {
+    tab.addEventListener("click", () => showSection(tab.dataset.section));
+  });
+
+  ["lk-goal", "lk-line", "lk-region", "lk-brand", "lk-posm"].forEach((id) => {
+    document.getElementById(id).addEventListener("change", runLookup);
+  });
+  document.getElementById("posm-hq-filter").addEventListener("change", () => {
+    fillPosmAreaOptions();
+    renderPosm();
+  });
+  document.getElementById("posm-area-filter").addEventListener("change", renderPosm);
+  document.getElementById("posm-search").addEventListener("input", renderPosm);
+  document.getElementById("posm-show-totals").addEventListener("change", renderPosm);
+  fillPosmAreaOptions();
+
+  document.querySelectorAll(".region-tab").forEach((tab) => {
+    tab.addEventListener("click", () => showRewardRegion(tab.dataset.region));
+  });
+  showRewardRegion("south");
+
+  try {
+    applyI18n();
+    showSection("overview");
+  } catch (err) {
+    console.error(err);
+    const hint = document.getElementById("open-hint");
+    if (hint) {
+      hint.style.display = "block";
+      hint.textContent = "Trang gặp lỗi JavaScript. Thử chạy open_display_process.bat hoặc mở http://127.0.0.1:8765/index.html — " + err.message;
     }
+  }
 
-    function minutesToDurationStrWithSeconds(mins) {
-        if (isNaN(mins) || mins <= 0) return '0:00:00';
-        const totalSecs = Math.round(mins * 60);
-        const h = Math.floor(totalSecs / 3600);
-        const m = Math.floor((totalSecs % 3600) / 60);
-        const s = totalSecs % 60;
-        return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  if (location.protocol === "file:") {
+    const hint = document.getElementById("open-hint");
+    if (hint) {
+      hint.style.display = "block";
+      hint.innerHTML = "Bạn đang mở file trực tiếp (file://). Nên chạy <strong>open_display_process.bat</strong> trong thư mục <code>webdisplayprocess</code> để tải form mẫu ổn định. Hoặc: <code>cd webdisplayprocess</code> → <code>python -m http.server 8765</code> → mở <a href=\"http://127.0.0.1:8765/index.html\">http://127.0.0.1:8765/index.html</a>";
     }
-
-    function minutesToTimeStrWithSeconds(mins) {
-        if (isNaN(mins) || mins <= 0) return '--';
-        const totalSecs = Math.round(mins * 60);
-        const h = Math.floor(totalSecs / 3600);
-        const m = Math.floor((totalSecs % 3600) / 60);
-        const s = totalSecs % 60;
-        return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-    }
-
-    function minutesToStr(mins) {
-        if (isNaN(mins) || mins <= 0) return `0 ${langData[curLang].unitHour} 0 ${langData[curLang].unitMinute}`;
-        const totalMins = Math.round(mins);
-        return `${Math.floor(totalMins / 60)} ${langData[curLang].unitHour} ${totalMins % 60} ${langData[curLang].unitMinute}`;
-    }
-
-    function formatNum(num, digits = 2) {
-        return new Intl.NumberFormat('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(num || 0);
-    }
-
-    setLang('vi');
-</script>
-
+  }
+})();
+  </script>
 </body>
 </html>
