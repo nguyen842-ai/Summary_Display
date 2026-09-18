@@ -1,11 +1,15 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="vi" class="auth-pending">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Quy trình Trưng bày TT | ThaiCorp Display Process</title>
   <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="allocation-data.js"></script>
+  <style>
+    html.auth-pending body { visibility: hidden; }
+  </style>
 </head>
 <body>
   <div id="open-hint" class="alert alert-warning" style="display:none;margin:0;border-radius:0;text-align:center;font-size:13px"></div>
@@ -323,7 +327,29 @@
   </main>
 
   <script>
-(function () {
+(async function () {
+  /* Cùng cơ chế auth với báo cáo Wet Market: session Supabase → nếu chưa login thì về trang chủ portal */
+  const PORTAL_HOME = "https://nguyen842-ai.github.io/Tong-hop-bao-cao/";
+  const SUPABASE_URL = "https://mrqldgycwovpbmzdeuyz.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_itZfZBVw7bxE184tGh7x8A_0_r-QB5p";
+
+  try {
+    if (!window.supabase) throw new Error("Supabase SDK missing");
+    const supabaseApp = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const { data: { session } } = await supabaseApp.auth.getSession();
+    if (!session) {
+      alert("Truy cập bị từ chối! Vui lòng đăng nhập hệ thống.");
+      window.location.href = PORTAL_HOME;
+      return;
+    }
+  } catch (authErr) {
+    console.error(authErr);
+    alert("Truy cập bị từ chối! Vui lòng đăng nhập hệ thống.");
+    window.location.href = PORTAL_HOME;
+    return;
+  }
+  document.documentElement.classList.remove("auth-pending");
+
   const I18N = {
     vi: {
       pageTitle: "Quy trình Trưng bày — Kênh TT",
