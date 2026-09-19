@@ -579,10 +579,10 @@
   };
 
   const FORMS = [
-    { nameVi: "Biên bản đăng ký trưng bày", nameEn: "Display registration form", descVi: "Excel", descEn: "Excel", href: "form%20m%E1%BA%ABu/Danh%20S%C3%A1ch%20Kh%C3%A1ch%20H%C3%A0ng%20%C4%90%C4%83ng%20K%C3%BD%20Tr%C6%B0ng%20B%C3%A0y.xlsx" },
-    { nameVi: "Thông tin khách hàng (ảnh vị trí trưng bày)", nameEn: "Customer information (display location photos)", descVi: "PPT", descEn: "PPT", href: "form%20m%E1%BA%ABu/CUSTOMER%20INFORMATION%20(update).pptx%20%5BRead-Only%5D%20(1).pptx" },
-    { nameVi: "Biên bản xác nhận trả trưng bày (FOC)", nameEn: "FOC display payment acknowledgment", descVi: "Excel", descEn: "Excel", href: "form%20m%E1%BA%ABu/BI%C3%8AN%20B%E1%BA%A2N%20X%C3%81C%20NH%E1%BA%ACN%20TR%E1%BA%A2%20TR%C6%AFNG%20B%C3%80Y.xlsx" },
-    { nameVi: "Biên bản hỗ trợ trưng bày (Hợp đồng trưng bày)", nameEn: "Display support agreement (display contract)", descVi: "Word", descEn: "Word", href: "form%20m%E1%BA%ABu/Bi%C3%AAn%20b%E1%BA%A3n%20h%E1%BB%97%20tr%E1%BB%A3%20Tr%C6%B0ng%20b%C3%A0y%20form%20(update).doc" }
+    { nameVi: "Biên bản đăng ký trưng bày", nameEn: "Display registration form", descVi: "Excel", descEn: "Excel", href: "forms/Danh%20S%C3%A1ch%20Kh%C3%A1ch%20H%C3%A0ng%20%C4%90%C4%83ng%20K%C3%BD%20Tr%C6%B0ng%20B%C3%A0y.xlsx", file: "Danh Sách Khách Hàng Đăng Ký Trưng Bày.xlsx" },
+    { nameVi: "Thông tin khách hàng (ảnh vị trí trưng bày)", nameEn: "Customer information (display location photos)", descVi: "PPT", descEn: "PPT", href: "forms/CUSTOMER%20INFORMATION%20(update).pptx%20%5BRead-Only%5D%20(1).pptx", file: "CUSTOMER INFORMATION (update).pptx [Read-Only] (1).pptx" },
+    { nameVi: "Biên bản xác nhận trả trưng bày (FOC)", nameEn: "FOC display payment acknowledgment", descVi: "Excel", descEn: "Excel", href: "forms/BI%C3%8AN%20B%E1%BA%A2N%20X%C3%81C%20NH%E1%BA%ACN%20TR%E1%BA%A2%20TR%C6%AFNG%20B%C3%80Y.xlsx", file: "BIÊN BẢN XÁC NHẬN TRẢ TRƯNG BÀY.xlsx" },
+    { nameVi: "Biên bản hỗ trợ trưng bày (Hợp đồng trưng bày)", nameEn: "Display support agreement (display contract)", descVi: "Word", descEn: "Word", href: "forms/Bi%C3%AAn%20b%E1%BA%A3n%20h%E1%BB%97%20tr%E1%BB%A3%20Tr%C6%B0ng%20b%C3%A0y%20form%20(update).doc", file: "Biên bản hỗ trợ Trưng bày form (update).doc" }
   ];
 
   const REF_DOCS = [
@@ -665,15 +665,41 @@
     });
   }
 
+  function downloadFile(href, filename) {
+    return fetch(href)
+      .then((r) => {
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.blob();
+      })
+      .then((blob) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename || href.split("/").pop();
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+      });
+  }
+
   function renderForms() {
-    document.getElementById("form-downloads").innerHTML = FORMS.map((f) => `
+    document.getElementById("form-downloads").innerHTML = FORMS.map((f, i) => `
       <li>
         <div class="form-meta">
           <p class="form-name">${lang === "vi" ? f.nameVi : f.nameEn}</p>
           <p class="form-desc">${lang === "vi" ? f.descVi : f.descEn}</p>
         </div>
-        <a class="btn btn-primary" href="${f.href}" download>${lang === "vi" ? "Tải xuống" : "Download"}</a>
+        <a class="btn btn-primary" href="${f.href}" download="${f.file || ""}" data-form-idx="${i}">${lang === "vi" ? "Tải xuống" : "Download"}</a>
       </li>`).join("");
+    document.getElementById("form-downloads").querySelectorAll("a[data-form-idx]").forEach((a) => {
+      a.addEventListener("click", (e) => {
+        const f = FORMS[Number(a.dataset.formIdx)];
+        if (!f) return;
+        e.preventDefault();
+        downloadFile(f.href, f.file).catch(() => { window.location.href = f.href; });
+      });
+    });
     document.getElementById("ref-docs-list").innerHTML = REF_DOCS.map((d) =>
       `<li><a href="${d.href}" download>${d.label}</a></li>`
     ).join("");
@@ -876,6 +902,12 @@
       hint.style.display = "block";
       hint.innerHTML = "Bạn đang mở file trực tiếp (file://). Nên chạy <strong>open_display_process.bat</strong> trong thư mục <code>webdisplayprocess</code> để tải form mẫu ổn định. Hoặc: <code>cd webdisplayprocess</code> → <code>python -m http.server 8765</code> → mở <a href=\"http://127.0.0.1:8765/index.html\">http://127.0.0.1:8765/index.html</a>";
     }
+  }
+
+  if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost" || location.hostname === "127.0.0.1")) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("./sw.js").catch(() => {});
+    });
   }
 })();
   </script>
